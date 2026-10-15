@@ -28,7 +28,7 @@ export default function Header({
                 className="header-logo logo-harapan"
               />
             </div>
-            <span className="brand-title">Gema Belajar</span>
+            <span className="brand-title">Gemar Belajar</span>
           </div>
 
           {/* Navigation (Clean Public View + Student Edit Portal) */}

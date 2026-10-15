@@ -1,8 +1,7 @@
 -- ==============================================================================
--- GEMA BELAJAR: RESET DATABASE KE STATUS AWAL SEED (PRA-PENGISIAN SISWA)
--- SMAS Kristen Harapan Bali • Pameran Karya Game AI Siswa
--- 
--- Gunakan skrip SQL ini di Supabase SQL Editor untuk:
+-- GEMAR BELAJAR: RESET DATABASE KE STATUS AWAL SEED (PRA-PENGISIAN SISWA)
+-- SMAS Kristen Harapan Bali • Pameran Karya Siswa
+-- ==============================================================================
 -- 1. Menghapus semua komentar & karya uji coba / demo.
 -- 2. Menghapus & mengembalikan seluruh 63 token kelompok ke status AKTIF (belum terpakai).
 -- 3. Memastikan ke-8 kelas (X-1 s.d. X-8) terdaftar sempurna.

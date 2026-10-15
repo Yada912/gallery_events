@@ -220,7 +220,7 @@ export default function StudentPortal({
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      alert('Mohon isi judul karya / game AI.');
+      alert('Mohon isi judul karya.');
       return;
     }
     if (!formData.creators.trim()) {
@@ -299,7 +299,7 @@ export default function StudentPortal({
             Unggah karya kelompok.
           </h1>
           <p className="hero-description">
-            Layanan mandiri bagi kelompok siswa SMAS Kristen Harapan untuk mengunggah poster karya dan tautan game AI menggunakan kunci akses kelompok.
+            Layanan mandiri bagi kelompok siswa SMAS Kristen Harapan untuk mengunggah poster dan tautan karya menggunakan kunci akses kelompok.
           </p>
         </section>
       </div>
@@ -666,18 +666,18 @@ export default function StudentPortal({
               {/* Field 1: Title */}
               <div className="student-field-group">
                 <label className="student-field-label">
-                  Judul Karya / Judul Game AI <span className="required">*</span>
+                  Judul Karya <span className="required">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   className="form-input-text"
                   style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 15 }}
-                  placeholder="Contoh: Petualangan Desa Adat Penglipuran AI"
+                  placeholder="Contoh: Harmoni Alam Desa Adat Penglipuran"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />
-                <div className="student-field-hint">Nama atau judul resmi game AI buatan kelompok Anda.</div>
+                <div className="student-field-hint">Nama atau judul resmi karya buatan kelompok Anda.</div>
               </div>
 
               {/* Field 2: Group & Creator Members */}
@@ -960,21 +960,21 @@ export default function StudentPortal({
                 )}
               </div>
 
-              {/* Field 4: Game URL */}
+              {/* Field 4: Game / Work URL */}
               <div className="student-field-group">
                 <label className="student-field-label">
-                  Tautan Game AI Siswa (Opsional)
+                  Tautan Karya Siswa (Opsional)
                 </label>
                 <input
                   type="url"
                   className="form-input-text"
                   style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14 }}
-                  placeholder="https://scratch.mit.edu/projects/... atau https://itch.io/..."
+                  placeholder="https://... tautan proyek interaktif, website, Scratch, Drive, dll."
                   value={formData.gameUrl}
                   onChange={(e) => setFormData({ ...formData, gameUrl: e.target.value })}
                 />
                 <div className="student-field-hint">
-                  Tautan game Scratch, Roblox, WebGL, atau platform lain agar pengunjung dapat mencoba langsung game AI kelompok Anda.
+                  Tautan karya interaktif, website, Scratch, Drive, atau platform lain agar pengunjung dapat membuka langsung karya kelompok Anda.
                 </div>
               </div>
 
@@ -987,7 +987,7 @@ export default function StudentPortal({
                   rows={4}
                   className="form-input-text"
                   style={{ width: '100%', padding: '12px 14px', fontSize: 14, resize: 'vertical' }}
-                  placeholder="Ceritakan pesan karya, latar belakang game AI, atau eksplorasi kelompok Anda tentang budaya Desa Adat Penglipuran..."
+                  placeholder="Ceritakan pesan karya, latar belakang konsep, atau eksplorasi kelompok Anda tentang budaya Desa Adat Penglipuran..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />

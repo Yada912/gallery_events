@@ -36,8 +36,8 @@ export default function IntroScreen({ onComplete }) {
       </div>
 
       <div className="intro-center">
-        <div className="intro-eyebrow">Proyek Kokulikuler</div>
-        <h1 className="intro-headline">Gema Belajar</h1>
+        <div className="intro-eyebrow">Proyek Kokurikuler</div>
+        <h1 className="intro-headline">Gemar Belajar</h1>
         <p className="intro-descriptor">
           Belajar dari Penglipuran: <strong>Menjelajah, Meneliti, Berkarya, dan Berbagi</strong>
         </p>

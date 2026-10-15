@@ -176,7 +176,7 @@ export default function ArtworkDetail({
               onClick={(e) => {
                 if (!project.gameUrl) {
                   e.preventDefault();
-                  alert('Tautan game eksternal untuk karya ini sedang dipersiapkan oleh tim siswa!');
+                  alert('Tautan karya untuk item ini sedang dipersiapkan oleh tim siswa!');
                 }
               }}
             >
@@ -184,7 +184,7 @@ export default function ArtworkDetail({
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>north_east</span>
             </a>
             <div className="external-link-status">
-              {project.gameUrl ? `Tautan karya & game AI siswa · ${project.gameUrl}` : 'Tautan game eksternal sedang dipersiapkan oleh tim siswa'}
+              {project.gameUrl ? `Tautan karya siswa · ${project.gameUrl}` : 'Tautan karya sedang dipersiapkan oleh tim siswa'}
             </div>
           </div>
 

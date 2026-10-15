@@ -1,6 +1,6 @@
 -- ========================================================
--- GEMA BELAJAR - SEED KUNCI AKSES KELOMPOK SISWA (63 KELOMPOK)
--- SMAS Kristen Harapan Bali • Penglipuran AI Game Exhibition
+-- GEMAR BELAJAR - SEED KUNCI AKSES KELOMPOK SISWA (63 KELOMPOK)
+-- SMAS Kristen Harapan Bali • Pameran Karya Siswa Penglipuran
 -- Jalankan skrip ini langsung di Supabase SQL Editor.
 -- ========================================================
 

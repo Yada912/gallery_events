@@ -1,4 +1,4 @@
-# AGENTS.md — Development Rules for Gema Belajar
+# AGENTS.md — Development Rules for Gemar Belajar
 
 ## Icon Standards (Mandatory)
 - **Always use Google Material Symbols**: All icons must use `<span className="material-symbols-outlined">icon_name</span>`.

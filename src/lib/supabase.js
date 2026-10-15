@@ -23,7 +23,7 @@ export const supabase = isSupabaseConfigured
 
 // Local BroadcastChannel for instant multi-tab live sync when in local mode
 const liveChannel = typeof window !== 'undefined' && window.BroadcastChannel
-  ? new BroadcastChannel('gema_belajar_realtime')
+  ? new BroadcastChannel('gemar_belajar_realtime')
   : null;
 
 const STORAGE_KEYS = {
@@ -285,10 +285,22 @@ export async function toggleLikeProject(projectId) {
 
   if (isSupabaseConfigured) {
     try {
-      await supabase
-        .from('projects')
-        .update({ likes_count: newCount })
-        .eq('id', projectId);
+      // 1. Try atomic database RPC (prevents race conditions and lost updates)
+      const { data: rpcCount, error: rpcError } = await supabase.rpc('increment_project_like', {
+        p_project_id: projectId,
+        p_delta: delta
+      });
+
+      if (!rpcError && typeof rpcCount === 'number') {
+        newCount = rpcCount;
+        project.likesCount = newCount;
+      } else {
+        // 2. Graceful fallback to column update if RPC is not yet applied
+        await supabase
+          .from('projects')
+          .update({ likes_count: newCount })
+          .eq('id', projectId);
+      }
     } catch (err) {
       console.error('Supabase like update error:', err);
     }

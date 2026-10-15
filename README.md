@@ -1,8 +1,8 @@
-# Gema Belajar — Pameran Siswa SMAS Kristen Harapan
+# Gemar Belajar — Pameran Siswa SMAS Kristen Harapan
 
-> **Proyek Kokulikuler: Gema Belajar**  
+> **Proyek Kokurikuler: Gemar Belajar**  
 > *"Belajar dari Penglipuran: Menjelajah, Meneliti, Berkarya, dan Berbagi"*  
-> Website pameran galeri karya siswa SMAS Kristen Harapan (Bali), menampilkan proyek game berbasis AI dan poster karya setiap kelompok.
+> Website pameran galeri karya siswa SMAS Kristen Harapan (Bali), menampilkan karya dan poster setiap kelompok.
 
 ---
 
@@ -21,12 +21,12 @@ Implementasi dibuat presisi berdasarkan draft Figma (`designs / design a`):
    - Navigasi karya sebelumnya & berikutnya dalam kelas.
    - Tombol **Suka** interaktif (tersimpan secara lokal & database).
    - **Diskusi Komentar Real-time (Live)** dengan dukungan balasan resmi pembuat (*creator badge*).
-   - Tombol tautan eksternal game AI siswa (`Buka tautan karya XX ↗`).
+   - Tombol tautan eksternal karya siswa (`Buka Karya ↗`).
 4. **Panel Pengelola Terpisah (`/admin`)**:
    - Terisolasi penuh di rute terpisah (`/admin`) dan tidak dapat dilihat dari halaman publik.
    - Terlindungi kode sandi pengelola rahasia (dikonfigurasi via `VITE_ADMIN_PASSCODE`).
    - **Kelola Kelas**: Tambah kelas baru atau hapus kelas yang sudah tidak digunakan.
-   - **Kelola Karya & Game**: Tambah, edit, atau hapus detail proyek, kelompok, dan URL game.
+   - **Kelola Karya**: Tambah, edit, atau hapus detail proyek, kelompok, dan URL karya.
    - **Generator Kunci Akses Siswa (Single-Use Keys)**: Hasilkan 10 kunci 6-digit acak sekali pakai dengan 1 klik untuk diberikan ke siswa jika perlu mengedit saat acara live.
    - **Kontrol Penuh Interaksi**:
      - Ubah jumlah suka/likes secara langsung untuk tiap karya.
@@ -85,14 +85,14 @@ Setiap kelompok memiliki **1 token 6-digit unik** dan **hanya 1 kesempatan** unt
 4. **Alur Siswa di Portal Mandiri (`/edit`)**:
    - Siswa memasukkan 6-digit token kelompok mereka.
    - Sistem memverifikasi token dan **secara otomatis mengarahkan siswa ke formulir kelas dan kelompoknya** (tanpa perlu mencari/memilih manual).
-   - Siswa mengisi: Judul Karya, Nama Anggota, Poster (bisa unggah berkas langsung dengan **kompresi otomatis WebP** ~150KB agar hemat kuota atau via link Google Drive), Link Game AI (opsional), dan Deskripsi (opsional).
+   - Siswa mengisi: Judul Karya, Nama Anggota, Poster (bisa unggah berkas langsung dengan **kompresi otomatis WebP** ~150KB agar hemat kuota atau via link Google Drive), Link Karya (opsional), dan Deskripsi (opsional).
    - Nomor urut karya (*01, 02, dst.*) dan format media ditentukan secara otomatis oleh sistem.
    - Begitu karya disimpan, token kelompok langsung **hangus permanen (1 kali kesempatan)** untuk mencegah manipulasi berulang.
 
 ### 📋 Cara Impor Data Spreadsheet & Google Drive
 Ketika Anda menerima spreadsheet berisi daftar karya siswa:
 1. Masuk ke halaman `/admin` &rarr; buka tab **"Impor Spreadsheet & Drive"**.
-2. Salin baris data dari Google Sheets / Excel (format kolom: `Kelas | Judul | Pembuat | Link Drive Poster | Link Game | Deskripsi`).
+2. Salin baris data dari Google Sheets / Excel (format kolom: `Kelas | Judul | Pembuat | Link Drive Poster | Link Karya | Deskripsi`).
 3. Tempelkan ke kotak teks impor dan klik **"Proses & Simpan Semua Karya"**.
 4. Sistem otomatis mendeteksi ID berkas dari tautan Google Drive dan mengubahnya menjadi format CDN langsung (`https://lh3.googleusercontent.com/d/...`), sekaligus otomatis mendaftarkan kelas yang belum ada.
 

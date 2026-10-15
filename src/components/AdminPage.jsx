@@ -100,7 +100,7 @@ export default function AdminPage({
 }) {
   const [passcode, setPasscode] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('gema_admin_auth') === 'true';
+    return sessionStorage.getItem('gemar_admin_auth') === 'true' || sessionStorage.getItem('gema_admin_auth') === 'true';
   });
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -181,9 +181,10 @@ export default function AdminPage({
   const handleLogin = (e) => {
     e.preventDefault();
     const correctCode = import.meta.env.VITE_ADMIN_PASSCODE;
-    const isMatch = correctCode ? passcode === correctCode : (passcode === 'gema2026');
+    const isMatch = correctCode ? passcode === correctCode : (passcode === 'gemar2026' || passcode === 'gema2026');
     if (isMatch) {
       setIsAuthenticated(true);
+      sessionStorage.setItem('gemar_admin_auth', 'true');
       sessionStorage.setItem('gema_admin_auth', 'true');
       setErrorMsg('');
     } else {
@@ -388,7 +389,7 @@ export default function AdminPage({
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
             <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600 }}>
-              Panel Pengelola &middot; Gema Belajar
+              Panel Pengelola &middot; Gemar Belajar
             </h1>
           </div>
 
@@ -430,7 +431,7 @@ export default function AdminPage({
               Masuk Administrator
             </h2>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 24, lineHeight: 1.5 }}>
-              Akses khusus untuk mengelola karya, kelas, tautan game eksternal, like, dan memoderasi komentar.
+              Akses khusus untuk mengelola karya, kelas, tautan karya, like, dan memoderasi komentar.
             </p>
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input
@@ -463,7 +464,7 @@ export default function AdminPage({
                 className={`admin-tab-btn ${activeTab === 'PROJECTS' ? 'active' : ''}`}
                 onClick={() => setActiveTab('PROJECTS')}
               >
-                Karya & Proyek Game ({projects.length})
+                Daftar Karya ({projects.length})
               </button>
               <button
                 className={`admin-tab-btn ${activeTab === 'CLASSES' ? 'active' : ''}`}
@@ -554,7 +555,7 @@ export default function AdminPage({
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12 }}>
                       <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20 }}>
-                        {editingProject === 'NEW' ? 'Tambah Karya / Game AI Baru' : `Edit Karya: ${projectForm.title}`}
+                        {editingProject === 'NEW' ? 'Tambah Karya Baru' : `Edit Karya: ${projectForm.title}`}
                       </h3>
                       <button 
                         type="button" 
@@ -596,7 +597,7 @@ export default function AdminPage({
 
                     <div className="admin-form-grid">
                       <div>
-                        <label className="field-label">Judul Karya / Judul Game AI</label>
+                        <label className="field-label">Judul Karya</label>
                         <input
                           type="text"
                           className="form-input-text"
@@ -648,12 +649,12 @@ export default function AdminPage({
                       </div>
 
                       <div>
-                        <label className="field-label">Tautan Game Eksternal (URL Game AI)</label>
+                        <label className="field-label">Tautan Karya Eksternal (URL Karya)</label>
                         <input
                           type="url"
                           className="form-input-text"
                           style={{ width: '100%', marginTop: 4 }}
-                          placeholder="https://itch.io, link website game, atau Google Drive game"
+                          placeholder="https://... tautan website, proyek interaktif, atau Google Drive karya"
                           value={projectForm.gameUrl}
                           onChange={(e) => setProjectForm({ ...projectForm, gameUrl: e.target.value })}
                         />
@@ -685,7 +686,7 @@ export default function AdminPage({
                     </div>
 
                     <div style={{ marginBottom: 20 }}>
-                      <label className="field-label">Deskripsi / Konteks Pembuatan Game AI</label>
+                      <label className="field-label">Deskripsi / Konteks Pembuatan Karya</label>
                       <textarea
                         className="form-input-text"
                         style={{ width: '100%', height: 70, marginTop: 4, padding: 10 }}
@@ -736,10 +737,10 @@ export default function AdminPage({
                                   rel="noreferrer" 
                                   style={{ color: '#059669', textDecoration: 'underline' }}
                                 >
-                                  Tautan Game Aktif &rarr;
+                                  Tautan Karya Aktif &rarr;
                                 </a>
                               ) : (
-                                <span>Belum ada tautan game</span>
+                                <span>Belum ada tautan karya</span>
                               )}
                               &nbsp;&middot;&nbsp;{(p.comments || []).length} Komentar
                             </div>
@@ -1119,13 +1120,13 @@ export default function AdminPage({
                   </div>
 
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 16 }}>
-                    Ketika Anda menerima spreadsheet berisi link Google Drive untuk poster dan link game, Anda cukup menyalin (copy) baris spreadsheet tersebut lalu menempelkannya (paste) ke kotak di bawah ini.
+                    Ketika Anda menerima spreadsheet berisi link Google Drive untuk poster dan link karya, Anda cukup menyalin (copy) baris spreadsheet tersebut lalu menempelkannya (paste) ke kotak di bawah ini.
                   </p>
 
                   <div style={{ background: 'var(--bg-subtle)', padding: 14, borderRadius: 2, fontSize: 13, marginBottom: 16 }}>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>Format Kolom yang Didukung (Urutan Standar):</div>
                     <code style={{ color: 'var(--text-primary)' }}>
-                      Kelas &nbsp;|&nbsp; Judul Karya &nbsp;|&nbsp; Nama Pembuat &nbsp;|&nbsp; Link Google Drive Poster &nbsp;|&nbsp; Link Game &nbsp;|&nbsp; Deskripsi
+                      Kelas &nbsp;|&nbsp; Judul Karya &nbsp;|&nbsp; Nama Pembuat &nbsp;|&nbsp; Link Google Drive Poster &nbsp;|&nbsp; Link Karya &nbsp;|&nbsp; Deskripsi
                     </code>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
                       * Link Google Drive (misal: <code>https://drive.google.com/file/d/1a2b3c.../view?usp=sharing</code>) akan otomatis dikonversi menjadi URL gambar web langsung.
@@ -1184,7 +1185,7 @@ export default function AdminPage({
                             <th style={{ padding: '8px 12px' }}>Kelas</th>
                             <th style={{ padding: '8px 12px' }}>Judul</th>
                             <th style={{ padding: '8px 12px' }}>Pembuat</th>
-                            <th style={{ padding: '8px 12px' }}>Tautan Game</th>
+                            <th style={{ padding: '8px 12px' }}>Tautan Karya</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1248,7 +1249,7 @@ export default function AdminPage({
                           const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
                           const portalUrl = `${origin}/edit`;
 
-                          let msg = `📢 *PENGUMUMAN KUNCI AKSES PENGUNGGAHAN KARYA PAMERAN GEMA BELAJAR*\n`;
+                          let msg = `📢 *PENGUMUMAN KUNCI AKSES PENGUNGGAHAN KARYA PAMERAN GEMAR BELAJAR*\n`;
                           msg += `*SMAS Kristen Harapan • Penglipuran Exhibition*\n\n`;
                           msg += `Kepada seluruh perwakilan kelompok siswa, silakan buka portal berikut untuk mengunggah poster dan karya kelompok Anda:\n`;
                           msg += `🔗 ${portalUrl}\n\n`;

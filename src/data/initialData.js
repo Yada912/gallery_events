@@ -1,6 +1,6 @@
 // =========================================================
 // Initial Exhibition Data: SMAS KRISTEN HARAPAN BALI
-// Proyek Kokulikuler: Gema Belajar (Belajar dari Penglipuran)
+// Proyek Kokurikuler: Gemar Belajar (Belajar dari Penglipuran)
 // =========================================================
 
 export const INITIAL_CLASSES = [
@@ -53,7 +53,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster1.jpg",
     gameUrl: "https://itch.io",
-    description: "Eksplorasi estetika ruang kosong dan harmoni arsitektur gerbang tradisional Desa Penglipuran. Game petualangan AI teka-teki bertema pelestarian hutan bambu.",
+    description: "Eksplorasi estetika ruang kosong dan harmoni arsitektur gerbang tradisional Desa Penglipuran. Karya interaktif bertema pelestarian hutan bambu.",
     likesCount: 12,
     displayOrder: 1,
     comments: [
@@ -76,7 +76,7 @@ export const INITIAL_PROJECTS = [
       {
         id: "c-2",
         authorName: "Budi Santoso",
-        content: "Desain visual posternya sangat puitis dan game teka-tekinya seru dimainkan!",
+        content: "Desain visual posternya sangat puitis dan karya interaktifnya sangat menarik dieksplorasi!",
         createdAt: "30 menit lalu",
         isCreator: false,
         replies: []
@@ -92,14 +92,14 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Game RPG retro pixel art yang menggabungkan kecerdasan buatan untuk merancang jalur pendakian Gunung Batur dan mitologi lokal Penglipuran.",
+    description: "Karya eksplorasi visual retro yang merancang jalur pendakian Gunung Batur dan mitologi lokal Penglipuran.",
     likesCount: 24,
     displayOrder: 2,
     comments: [
       {
         id: "c-3",
         authorName: "Pak Guru Nyoman",
-        content: "Sangat bangga melihat murid SMAS Harapan mengadopsi AI secara kreatif dalam game retro ini.",
+        content: "Sangat bangga melihat murid SMAS Harapan berkarya secara kreatif dalam proyek kokurikuler ini.",
         createdAt: "3 jam lalu",
         isCreator: false,
         replies: []
@@ -115,7 +115,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster3.jpg",
     gameUrl: "https://itch.io",
-    description: "Game ritme musik gamelan tradisional Bali yang memanfaatkan algoritma AI nada perunggu untuk mengenalkan tangga nada slendro kepada generasi muda.",
+    description: "Karya ritme musik gamelan tradisional Bali untuk mengenalkan tangga nada slendro kepada generasi muda.",
     likesCount: 31,
     displayOrder: 3,
     comments: []
@@ -143,7 +143,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Game tata kota adat berlandaskan filosofi hubungan manusia dengan Tuhan, sesama, dan alam sekitarnya.",
+    description: "Karya tata ruang adat berlandaskan filosofi hubungan manusia dengan Tuhan, sesama, dan alam sekitarnya.",
     likesCount: 19,
     displayOrder: 5,
     comments: []
@@ -157,7 +157,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster3.jpg",
     gameUrl: "https://itch.io",
-    description: "Game detektif AI mengurai sejarah isyarat bunyi kentongan kayu desa kuno.",
+    description: "Karya narasi interaktif mengurai sejarah isyarat bunyi kentongan kayu desa kuno.",
     likesCount: 8,
     displayOrder: 6,
     comments: []
@@ -171,7 +171,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster1.jpg",
     gameUrl: "https://itch.io",
-    description: "Penerjemahan aksara Bali kuno menjadi gameplay interaktif berbasis Computer Vision dan AI teks.",
+    description: "Penerjemahan aksara Bali kuno menjadi karya visual interaktif.",
     likesCount: 22,
     displayOrder: 7,
     comments: []
@@ -201,7 +201,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster1.jpg",
     gameUrl: "https://itch.io",
-    description: "Game strategi menjaga kerapian tata ruang dan penanaman rumpun bambu.",
+    description: "Karya strategi menjaga kerapian tata ruang dan penanaman rumpun bambu.",
     likesCount: 17,
     displayOrder: 1,
     comments: []
@@ -215,7 +215,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Game petualangan eksplorasi makna simbolik arsitektur gerbang rumah Bali.",
+    description: "Karya eksplorasi makna simbolik arsitektur gerbang rumah Bali.",
     likesCount: 14,
     displayOrder: 2,
     comments: []
@@ -257,7 +257,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Game meracik minuman herbal tradisional khas Penglipuran berkhasiat kesehatan.",
+    description: "Karya tradisi meracik minuman herbal khas Penglipuran berkhasiat kesehatan.",
     likesCount: 26,
     displayOrder: 5,
     comments: []
@@ -271,7 +271,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster3.jpg",
     gameUrl: "https://itch.io",
-    description: "Desain motif tenun & batik komputasional menggunakan generative AI.",
+    description: "Desain motif tenun & batik komputasional bernuansa kearifan lokal.",
     likesCount: 13,
     displayOrder: 6,
     comments: []
@@ -285,7 +285,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster1.jpg",
     gameUrl: "https://itch.io",
-    description: "Audio drama game suasana embun pagi di dataran tinggi Bangli.",
+    description: "Audio drama suasana embun pagi di dataran tinggi Bangli.",
     likesCount: 20,
     displayOrder: 7,
     comments: []
@@ -299,7 +299,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Game observatorium astronomi tradisional Bali (Wariga).",
+    description: "Karya observatorium astronomi tradisional Bali (Wariga).",
     likesCount: 18,
     displayOrder: 8,
     comments: []
@@ -357,7 +357,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Game manajemen zero-waste di pemukiman desa wisata.",
+    description: "Karya manajemen zero-waste di pemukiman desa wisata.",
     likesCount: 10,
     displayOrder: 4,
     comments: []
@@ -399,7 +399,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Game identifikasi kupu-kupu dan fauna polinator Penglipuran.",
+    description: "Karya identifikasi kupu-kupu dan fauna polinator Penglipuran.",
     likesCount: 14,
     displayOrder: 7,
     comments: []
@@ -443,7 +443,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster1.jpg",
     gameUrl: "https://itch.io",
-    description: "Game edukasi struktur selular pertumbuhan pesat tanaman bambu.",
+    description: "Karya edukasi struktur selular pertumbuhan pesat tanaman bambu.",
     likesCount: 9,
     displayOrder: 2,
     comments: []
@@ -543,7 +543,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster1.jpg",
     gameUrl: "https://itch.io",
-    description: "Game simulasi perilaku menghormati norma dan aturan sakral desa adat.",
+    description: "Karya simulasi perilaku menghormati norma dan aturan sakral desa adat.",
     likesCount: 25,
     displayOrder: 1,
     comments: []
@@ -657,7 +657,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster2.jpg",
     gameUrl: "https://itch.io",
-    description: "Perspektif pemuda Bali memegang nilai luhur di era revolusi AI.",
+    description: "Perspektif pemuda Bali memegang nilai luhur di era modern.",
     likesCount: 28,
     displayOrder: 1,
     comments: []
@@ -671,7 +671,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster3.jpg",
     gameUrl: "https://itch.io",
-    description: "Game tebak kata kosakata bahasa Bali ragam khas Penglipuran.",
+    description: "Karya kosakata bahasa Bali ragam khas Penglipuran.",
     likesCount: 15,
     displayOrder: 2,
     comments: []
@@ -727,7 +727,7 @@ export const INITIAL_PROJECTS = [
     format: "PNG",
     posterUrl: "/artworks/poster1.jpg",
     gameUrl: "https://itch.io",
-    description: "Refleksi pembelajaran kokulikuler SMAS Harapan tentang nilai integritas dan rasa syukur.",
+    description: "Refleksi pembelajaran kokurikuler SMAS Harapan tentang nilai integritas dan rasa syukur.",
     likesCount: 13,
     displayOrder: 6,
     comments: []

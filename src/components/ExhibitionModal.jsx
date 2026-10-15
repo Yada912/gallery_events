@@ -32,34 +32,34 @@ export default function ExhibitionModal({ isOpen, onClose }) {
           </h2>
 
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 20 }}>
-            Pameran <strong>Gema Belajar</strong> merupakan perayaan karya kolaborasi kokulikuler siswa-siswi SMAS Kristen Harapan setelah melakukan studi lapangan mendalam di Desa Adat Penglipuran, Bangli, Bali.
+            Pameran <strong>Gemar Belajar</strong> merupakan perayaan karya kolaborasi kokurikuler siswa-siswi SMAS Kristen Harapan setelah melakukan studi lapangan mendalam di Desa Adat Penglipuran, Bangli, Bali.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div style={{ background: 'var(--bg-subtle)', padding: 16, borderRadius: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#d97706' }}>auto_awesome</span>
-                <span>Karya Game AI</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#d97706' }}>palette</span>
+                <span>Karya Interaktif</span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Setiap kelompok merancang permainan digital interaktif memanfaatkan kecerdasan buatan untuk meracik narasi, aset visual pixel, musik gamelan, dan logika puzzle.
+                Setiap kelompok merancang karya eksplorasi interaktif yang memadukan narasi, keindahan visual, dan nilai kearifan lokal.
               </p>
             </div>
 
             <div style={{ background: 'var(--bg-subtle)', padding: 16, borderRadius: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2563eb' }}>menu_book</span>
-                <span>Poster Seni</span>
+                <span>Poster Karya</span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Setiap poster yang terpajang merupakan karya seni visual representatif yang merangkum filosofi, estetika budaya, dan akses langsung ke permainan game siswa.
+                Setiap poster yang terpajang merupakan karya seni visual representatif yang merangkum filosofi, estetika budaya, dan akses langsung ke karya siswa.
               </p>
             </div>
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Kurasi Kokulikuler 2026 &middot; Bali, Indonesia
+              Kurasi Kokurikuler 2026 &middot; Bali, Indonesia
             </div>
             <button 
               className="submit-comment-btn"

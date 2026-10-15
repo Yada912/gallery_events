@@ -148,8 +148,81 @@ export default function App() {
             proj.id === event.projectId ? { ...proj, likesCount: event.count } : proj
           )
         );
+      } else if (event.type === 'SUPABASE_COMMENT_CHANGE') {
+        // High-concurrency granular update: avoid full DB refetch when a comment is added
+        const payload = event.payload;
+        if (payload && payload.eventType === 'INSERT' && payload.new) {
+          const row = payload.new;
+          const incomingComment = {
+            id: row.id,
+            authorName: row.author_name || 'Anonim',
+            content: row.content || '',
+            createdAt: new Date(row.created_at || Date.now()).toLocaleDateString('id-ID'),
+            isCreator: Boolean(row.is_creator),
+            parentId: row.parent_id,
+            replies: []
+          };
+          setProjects((prev) =>
+            prev.map((proj) => {
+              if (proj.id === row.project_id) {
+                const comments = proj.comments ? [...proj.comments] : [];
+                if (incomingComment.parentId) {
+                  const parent = comments.find(c => c.id === incomingComment.parentId);
+                  if (parent) {
+                    if (!parent.replies) parent.replies = [];
+                    if (!parent.replies.some(r => r.id === incomingComment.id)) {
+                      parent.replies.push(incomingComment);
+                    }
+                  } else if (!comments.some(c => c.id === incomingComment.id)) {
+                    comments.push(incomingComment);
+                  }
+                } else if (!comments.some(c => c.id === incomingComment.id)) {
+                  comments.push(incomingComment);
+                }
+                return { ...proj, comments };
+              }
+              return proj;
+            })
+          );
+        } else if (payload && payload.eventType === 'DELETE' && payload.old) {
+          setProjects((prev) =>
+            prev.map((proj) => ({
+              ...proj,
+              comments: (proj.comments || [])
+                .filter(c => c.id !== payload.old.id)
+                .map(c => ({
+                  ...c,
+                  replies: c.replies ? c.replies.filter(r => r.id !== payload.old.id) : []
+                }))
+            }))
+          );
+        }
+      } else if (event.type === 'SUPABASE_PROJECT_CHANGE') {
+        // High-concurrency granular update: update only affected project without full refetch
+        const payload = event.payload;
+        if (payload && payload.eventType === 'UPDATE' && payload.new) {
+          setProjects((prev) =>
+            prev.map((proj) => {
+              if (proj.id === payload.new.id) {
+                return {
+                  ...proj,
+                  likesCount: payload.new.likes_count ?? proj.likesCount,
+                  title: payload.new.title ?? proj.title,
+                  creators: payload.new.creators ?? proj.creators,
+                  posterUrl: payload.new.poster_url ?? proj.posterUrl,
+                  gameUrl: payload.new.game_url ?? proj.gameUrl,
+                  description: payload.new.description ?? proj.description
+                };
+              }
+              return proj;
+            })
+          );
+        } else if (payload && payload.eventType === 'INSERT') {
+          // Only refetch on a brand-new project creation (infrequent, ~70 times in total)
+          loadData();
+        }
       } else {
-        // Full refresh on classes or projects changes or batch import
+        // Fallback for classes change or batch import
         loadData();
       }
     });

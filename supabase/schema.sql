@@ -1,5 +1,5 @@
 -- ========================================================
--- GEMA BELAJAR - Supabase Database Schema (Idempotent / Safe Re-run)
+-- GEMAR BELAJAR - Supabase Database Schema (Idempotent / Safe Re-run)
 -- Pameran Siswa SMAS Kristen Harapan (Penglipuran Exhibition)
 -- ========================================================
 
@@ -15,7 +15,7 @@ create table if not exists public.classes (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Projects (Student Artworks / AI Games) Table
+-- 2. Projects (Student Artworks / Karya Siswa) Table
 create table if not exists public.projects (
   id text primary key,
   class_id text references public.classes(id) on delete cascade not null,

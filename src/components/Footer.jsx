@@ -6,7 +6,7 @@ export default function Footer({ onOpenStudentPortal }) {
       <div className="container">
         <div className="site-footer-inner">
           <div className="footer-brand">
-            Proyek Kokulikuler: <strong>Gema Belajar</strong>
+            Proyek Kokurikuler: <strong>Gemar Belajar</strong>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             <span>Pameran karya siswa &middot; Mari jelajahi.</span>

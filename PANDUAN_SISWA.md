@@ -1,8 +1,8 @@
 # Panduan Lengkap Siswa: Pengunggahan & Pembaruan Karya
-## Pameran Kokurikuler AI Game — "Gema Belajar"
+## Pameran Kokurikuler — "Gemar Belajar"
 ### SMAS Kristen Harapan Denpasar (Bali)
 
-Selamat datang di sistem kurasi mandiri karya pameran **Gema Belajar**! Dokumen panduan ini disusun khusus agar setiap kelompok siswa dapat mengunggah karya game AI dan poster pameran secara mandiri, rapi, dan percaya diri dengan panduan visual langkah demi langkah.
+Selamat datang di sistem kurasi mandiri karya pameran **Gemar Belajar**! Dokumen panduan ini disusun khusus agar setiap kelompok siswa dapat mengunggah poster dan tautan karya pameran secara mandiri, rapi, dan percaya diri dengan panduan visual langkah demi langkah.
 
 ---
 
@@ -16,8 +16,8 @@ Sebelum membuka portal pengunggahan, pastikan perwakilan kelompok telah menyiapk
    - Format gambar: JPG, PNG, JPEG, atau WebP.
    - Sistem dilengkapi **kompresi otomatis modern** yang langsung mengubah gambar menjadi format WebP ringan (~100–200 KB) dengan resolusi tajam agar cepat dimuat di HP pengunjung.
    - *Alternatif:* Tersedia opsi **Tautan Google Drive** jika berkas poster tersimpan di Drive.
-3. **Tautan Game AI Siswa**:  
-   Tautan game buatan kelompok Anda (misalnya tautan Web, Scratch, itch.io, Google Drive, Roblox, dsb.) agar pengunjung dapat langsung memainkannya.
+3. **Tautan Karya Siswa (Opsional)**:  
+   Tautan karya buatan kelompok Anda (misalnya tautan Web, Scratch, Google Drive, dsb.) agar pengunjung dapat langsung membuka dan mencobanya.
 4. **Nama Kelompok & Anggota**:  
    Nama kelompok (sesuai daftar kurasi) beserta nama seluruh anggota tim pembuat.
 
@@ -26,7 +26,7 @@ Sebelum membuka portal pengunggahan, pastikan perwakilan kelompok telah menyiapk
 ## 🚀 2. Panduan Langkah demi Langkah Mengunggah Karya Baru
 
 ### Langkah 1: Buka Portal Mandiri Siswa
-1. Buka situs web pameran Gema Belajar di browser HP atau laptop Anda.
+1. Buka situs web pameran Gemar Belajar di browser HP atau laptop Anda.
 2. Di pojok kanan atas bilah navigasi, klik menu **"Input / Edit Karya"** (atau buka alamat langsung: `https://[alamat-web]/edit` atau `#edit`).
 
 ![Langkah 1: Menu Input / Edit Karya pada Navigasi Header](./docs/screenshots/01_navigasi_header.png)
@@ -52,8 +52,8 @@ Sebelum membuka portal pengunggahan, pastikan perwakilan kelompok telah menyiapk
 ---
 
 ### Langkah 4: Mengisi Judul Karya dan Anggota Tim
-1. **Judul Karya / Judul Game AI (Wajib):**  
-   Tuliskan judul game kelompok Anda secara jelas dan menarik (contoh: *Petualangan Desa Adat Penglipuran AI*).
+1. **Judul Karya (Wajib):**  
+   Tuliskan judul karya kelompok Anda secara jelas dan menarik (contoh: *Harmoni Alam Desa Adat Penglipuran*).
 2. **Nama Kelompok & Anggota Pembuat (Wajib):**  
    Tuliskan nama kelompok beserta nama-nama anggota tim pembuat karya (contoh: *KUACI (Kadek, Putu, Wayan, Made)*).
 
@@ -94,11 +94,11 @@ Jika poster Anda berada di Google Drive:
 
 ---
 
-### Langkah 6: Masukkan Tautan Game AI & Simpan Karya
-1. **Tautan Game AI Siswa (Opsional):**  
-   Tempelkan link game kelompok Anda agar pengunjung pameran dapat mencoba memainkannya.
+### Langkah 6: Masukkan Tautan Karya & Simpan Karya
+1. **Tautan Karya Siswa (Opsional):**  
+   Tempelkan tautan karya kelompok Anda agar pengunjung pameran dapat membuka atau mencobanya.
 2. **Deskripsi Singkat Karya (Opsional):**  
-   Tuliskan latar belakang game, pesan budaya/Penglipuran, atau petunjuk cara bermain.
+   Tuliskan latar belakang karya, refleksi nilai budaya/Penglipuran, atau konsep eksplorasi kelompok Anda.
 3. Periksa kembali seluruh isian formulir.
 4. Klik tombol merah-bata **"Kirim & Terbitkan Karya"** di bagian paling bawah formulir.
 
@@ -147,7 +147,7 @@ Karya Anda akan tampil dengan poster beresolusi tinggi, lencana kelas, judul, na
 
 ### Tombol "Buka Karya" & Kolom Komentar Apresiasi
 Di halaman detail karya:
-1. **Tombol "Buka Karya"**: Terletak jelas di atas kolom komentar agar pengunjung langsung mencoba game AI buatan kelompok Anda.
+1. **Tombol "Buka Karya"**: Terletak jelas di atas kolom komentar agar pengunjung langsung membuka karya buatan kelompok Anda.
 2. **Kolom Komentar Terstruktur**: Pengunjung dan teman sekelas dapat memberikan apresiasi dengan mencantumkan nama berformat resmi:  
    **`nama-kelas-absen`** (Contoh: `Wayan-X1-12`).
 
@@ -167,4 +167,4 @@ Di halaman detail karya:
 > **Jawab:** Pastikan pengaturan link berbagi di Google Drive telah disetel ke **"Anyone with the link can view" (Siapa saja yang memiliki tautan dapat melihat)**. Atau gunakan **"Unggah Gambar Langsung"** agar gambar langsung tersimpan di galeri.
 
 ### Q: Apakah bisa mengunggah dan membuka pameran dari HP?
-> **Jawab:** Tentu saja bisa! Seluruh sistem Gema Belajar didesain responsif dan sangat ringan untuk dibuka melalui Google Chrome atau Safari di perangkat Android maupun iPhone.
+> **Jawab:** Tentu saja bisa! Seluruh sistem Gemar Belajar didesain responsif dan sangat ringan untuk dibuka melalui Google Chrome atau Safari di perangkat Android maupun iPhone.
