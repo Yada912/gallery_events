@@ -20,6 +20,7 @@ import {
   addCommentToProject, 
   deleteCommentFromProject,
   subscribeToLiveUpdates,
+  organizeComments,
   isSupabaseConfigured
 } from './lib/supabase';
 
@@ -165,36 +166,28 @@ export default function App() {
           setProjects((prev) =>
             prev.map((proj) => {
               if (proj.id === row.project_id) {
-                const comments = proj.comments ? [...proj.comments] : [];
-                if (incomingComment.parentId) {
-                  const parent = comments.find(c => c.id === incomingComment.parentId);
-                  if (parent) {
-                    if (!parent.replies) parent.replies = [];
-                    if (!parent.replies.some(r => r.id === incomingComment.id)) {
-                      parent.replies.push(incomingComment);
-                    }
-                  } else if (!comments.some(c => c.id === incomingComment.id)) {
-                    comments.push(incomingComment);
-                  }
-                } else if (!comments.some(c => c.id === incomingComment.id)) {
-                  comments.push(incomingComment);
-                }
-                return { ...proj, comments };
+                return {
+                  ...proj,
+                  comments: organizeComments([...(proj.comments || []), incomingComment])
+                };
               }
               return proj;
             })
           );
         } else if (payload && payload.eventType === 'DELETE' && payload.old) {
           setProjects((prev) =>
-            prev.map((proj) => ({
-              ...proj,
-              comments: (proj.comments || [])
+            prev.map((proj) => {
+              const filtered = (proj.comments || [])
                 .filter(c => c.id !== payload.old.id)
                 .map(c => ({
                   ...c,
                   replies: c.replies ? c.replies.filter(r => r.id !== payload.old.id) : []
-                }))
-            }))
+                }));
+              return {
+                ...proj,
+                comments: organizeComments(filtered)
+              };
+            })
           );
         }
       } else if (event.type === 'SUPABASE_PROJECT_CHANGE') {
@@ -310,19 +303,10 @@ export default function App() {
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id === projectId) {
-          const comments = p.comments ? [...p.comments] : [];
-          if (newComment.parentId) {
-            const parent = comments.find(c => c.id === newComment.parentId);
-            if (parent) {
-              if (!parent.replies) parent.replies = [];
-              parent.replies.push(newComment);
-            } else {
-              comments.push(newComment);
-            }
-          } else {
-            comments.push(newComment);
-          }
-          return { ...p, comments };
+          return {
+            ...p,
+            comments: organizeComments([...(p.comments || []), newComment])
+          };
         }
         return p;
       })

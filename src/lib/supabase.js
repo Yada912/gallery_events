@@ -125,6 +125,68 @@ export async function deleteClass(classId) {
 }
 
 // ---------------------------------------------------------
+// Comments Tree Structuring Helper
+// ---------------------------------------------------------
+export function organizeComments(rawComments) {
+  if (!rawComments || !Array.isArray(rawComments)) return [];
+
+  const normalized = [];
+  const idMap = new Map();
+
+  // 1. Flatten in case comments are already partially nested or coming from different sources
+  const flatten = (items, fallbackParent = null) => {
+    for (const item of items) {
+      if (!item) continue;
+      const id = String(item.id);
+      const parentId = item.parentId || item.parent_id || (fallbackParent ? fallbackParent.id : null);
+      const norm = {
+        id,
+        authorName: item.authorName || item.author_name || 'Anonim',
+        content: item.content || '',
+        createdAt: item.createdAt || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : 'Baru saja'),
+        rawCreatedAt: item.created_at ? new Date(item.created_at).getTime() : (item.rawCreatedAt || 0),
+        isCreator: Boolean(item.isCreator ?? item.is_creator),
+        parentId: parentId ? String(parentId) : null,
+        replyToAuthorName: item.replyToAuthorName || (fallbackParent ? fallbackParent.authorName : null),
+        replies: []
+      };
+      normalized.push(norm);
+      idMap.set(id, norm);
+
+      if (Array.isArray(item.replies) && item.replies.length > 0) {
+        flatten(item.replies, norm);
+      }
+    }
+  };
+
+  flatten(rawComments);
+
+  // 2. Reconstruct clean hierarchy: root comments with nested replies
+  const rootComments = [];
+
+  for (const comment of normalized) {
+    if (comment.parentId && idMap.has(comment.parentId)) {
+      const parent = idMap.get(comment.parentId);
+      if (!comment.replyToAuthorName) {
+        comment.replyToAuthorName = parent.authorName;
+      }
+      // Attach under root thread ancestor for a clean, unified discussion branch
+      let rootParent = parent;
+      while (rootParent.parentId && idMap.has(rootParent.parentId)) {
+        rootParent = idMap.get(rootParent.parentId);
+      }
+      if (!rootParent.replies.some(r => r.id === comment.id)) {
+        rootParent.replies.push(comment);
+      }
+    } else {
+      rootComments.push(comment);
+    }
+  }
+
+  return rootComments;
+}
+
+// ---------------------------------------------------------
 // Projects API
 // ---------------------------------------------------------
 export async function fetchProjects() {
@@ -150,14 +212,7 @@ export async function fetchProjects() {
           description: item.description || '',
           likesCount: item.likes_count || 0,
           displayOrder: item.display_order || 0,
-          comments: (item.comments || []).map(c => ({
-            id: c.id,
-            authorName: c.author_name,
-            content: c.content,
-            createdAt: new Date(c.created_at).toLocaleDateString('id-ID'),
-            isCreator: c.is_creator,
-            parentId: c.parent_id
-          }))
+          comments: organizeComments(item.comments || [])
         }));
       }
     } catch (err) {
@@ -168,9 +223,16 @@ export async function fetchProjects() {
   initLocalStore();
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.PROJECTS);
-    return raw ? JSON.parse(raw) : INITIAL_PROJECTS;
+    const parsed = raw ? JSON.parse(raw) : INITIAL_PROJECTS;
+    return parsed.map(p => ({
+      ...p,
+      comments: organizeComments(p.comments || [])
+    }));
   } catch {
-    return INITIAL_PROJECTS;
+    return INITIAL_PROJECTS.map(p => ({
+      ...p,
+      comments: organizeComments(p.comments || [])
+    }));
   }
 }
 
@@ -381,14 +443,15 @@ export async function updateCommentInProject(projectId, commentId, updatedFields
   });
 }
 
-export async function addCommentToProject(projectId, { authorName, content, isCreator = false, parentId = null }) {
+export async function addCommentToProject(projectId, { authorName, content, isCreator = false, parentId = null, replyToAuthorName = null }) {
   const newComment = {
     id: `c-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     authorName: authorName.trim() || 'Anonim',
     content: content.trim(),
     createdAt: 'Baru saja',
     isCreator,
-    parentId,
+    parentId: parentId ? String(parentId) : null,
+    replyToAuthorName: replyToAuthorName || null,
     replies: []
   };
 
@@ -415,21 +478,7 @@ export async function addCommentToProject(projectId, { authorName, content, isCr
   const projects = await fetchProjects();
   const project = projects.find(p => p.id === projectId);
   if (project) {
-    if (!project.comments) project.comments = [];
-
-    if (parentId) {
-      // Find parent comment and append to its replies
-      const parent = project.comments.find(c => c.id === parentId);
-      if (parent) {
-        if (!parent.replies) parent.replies = [];
-        parent.replies.push(newComment);
-      } else {
-        project.comments.push(newComment);
-      }
-    } else {
-      project.comments.push(newComment);
-    }
-
+    project.comments = organizeComments([...(project.comments || []), newComment]);
     localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
   }
 

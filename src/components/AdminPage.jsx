@@ -1056,7 +1056,7 @@ export default function AdminPage({
                             <div style={{ marginTop: 12, paddingLeft: 14, borderLeft: '2px solid var(--border-medium)' }}>
                               {c.replies.map(r => (
                                 <div key={r.id} style={{ fontSize: 13, marginBottom: 6 }}>
-                                  <strong>{r.authorName} {r.isCreator && '(Pembuat)'}:</strong> {r.content}
+                                  <strong>{r.authorName} {r.isCreator && '(Pembuat)'}{r.replyToAuthorName ? ` (membalas @${r.replyToAuthorName})` : ''}:</strong> {r.content}
                                 </div>
                               ))}
                             </div>

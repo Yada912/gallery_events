@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 export default function ArtworkDetail({
   project,
@@ -11,11 +11,16 @@ export default function ArtworkDetail({
   onAddComment
 }) {
   const [threadExpanded, setThreadExpanded] = useState(true);
-  const [authorName, setAuthorName] = useState('');
+  const [authorName, setAuthorName] = useState(() => {
+    return typeof window !== 'undefined' ? (localStorage.getItem('gemar_author_name') || '') : '';
+  });
   const [commentText, setCommentText] = useState('');
-  const [replyingToId, setReplyingToId] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null); // { id, authorName, content }
   const [submitting, setSubmitting] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const commentFormRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // Sorted projects in current class
   const sortedClassProjects = [...classProjects].sort(
@@ -33,24 +38,47 @@ export default function ArtworkDetail({
   const comments = project.comments || [];
   const commentCount = comments.reduce((acc, c) => acc + 1 + (c.replies ? c.replies.length : 0), 0);
 
+  const handleInitiateReply = (targetComment) => {
+    setReplyingTo({
+      id: targetComment.id,
+      authorName: targetComment.authorName,
+      content: targetComment.content
+    });
+    setThreadExpanded(true);
+    setTimeout(() => {
+      if (commentFormRef.current) {
+        commentFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 60);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!authorName.trim()) {
-      alert('Mohon masukkan nama Anda sebelum mengirim komentar.');
+      alert('Mohon masukkan nama Anda sebelum mengirim komentar (format: nama-kelas-absen).');
       return;
     }
     if (!commentText.trim()) return;
 
     setSubmitting(true);
     try {
+      localStorage.setItem('gemar_author_name', authorName.trim());
       await onAddComment(project.id, {
         authorName: authorName.trim(),
         content: commentText.trim(),
-        parentId: replyingToId,
+        parentId: replyingTo ? replyingTo.id : null,
+        replyToAuthorName: replyingTo ? replyingTo.authorName : null,
         isCreator: false
       });
       setCommentText('');
-      setReplyingToId(null);
+      setReplyingTo(null);
     } finally {
       setSubmitting(false);
     }
@@ -213,52 +241,92 @@ export default function ArtworkDetail({
                       <div key={comment.id} className="comment-card">
                         <div className="comment-meta">
                           <span className="comment-author-name">{comment.authorName}</span>
+                          {comment.isCreator && (
+                            <span className="creator-badge">Pembuat</span>
+                          )}
                           <span>&middot;</span>
                           <span>{comment.createdAt}</span>
                         </div>
                         <div className="comment-body-text">{comment.content}</div>
-                        <span 
-                          className="comment-reply-action"
-                          onClick={() => {
-                            setReplyingToId(comment.id);
-                            setAuthorName('');
-                          }}
-                        >
-                          Balas
-                        </span>
+                        <div className="comment-actions-bar">
+                          <button 
+                            type="button"
+                            className="comment-reply-action-btn"
+                            onClick={() => handleInitiateReply(comment)}
+                            title={`Balas komentar dari ${comment.authorName}`}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>reply</span>
+                            <span>Balas</span>
+                          </button>
+                        </div>
 
-                        {/* Indented Creator Replies */}
-                        {comment.replies && comment.replies.map((reply) => (
-                          <div key={reply.id} className="creator-reply-card">
-                            <div className="comment-meta">
-                              <span className="comment-author-name">{reply.authorName}</span>
-                              {reply.isCreator && (
-                                <span className="creator-badge">Pembuat</span>
-                              )}
-                              <span>&middot;</span>
-                              <span>{reply.createdAt}</span>
-                            </div>
-                            <div className="comment-body-text">{reply.content}</div>
+                        {/* Indented & Connected Thread Replies */}
+                        {comment.replies && comment.replies.length > 0 && (
+                          <div className="comment-thread-replies">
+                            {comment.replies.map((reply) => (
+                              <div key={reply.id} className="comment-reply-card">
+                                <div className="comment-meta">
+                                  <span className="comment-author-name">{reply.authorName}</span>
+                                  {reply.isCreator && (
+                                    <span className="creator-badge">Pembuat</span>
+                                  )}
+                                  <span className="reply-referral-badge" title={`Membalas pesan dari @${reply.replyToAuthorName || comment.authorName}`}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>reply</span>
+                                    <span>@{reply.replyToAuthorName || comment.authorName}</span>
+                                  </span>
+                                  <span>&middot;</span>
+                                  <span>{reply.createdAt}</span>
+                                </div>
+                                <div className="comment-body-text">{reply.content}</div>
+                                <div className="comment-actions-bar">
+                                  <button 
+                                    type="button"
+                                    className="comment-reply-action-btn"
+                                    onClick={() => handleInitiateReply(reply)}
+                                    title={`Balas komentar dari ${reply.authorName}`}
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>reply</span>
+                                    <span>Balas</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     ))
                   )}
                 </div>
 
                 {/* Comment Input Form */}
-                <form className="comment-form-container" onSubmit={handleCommentSubmit}>
-                  {replyingToId && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-subtle)', padding: '6px 10px', borderRadius: 2 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>subdirectory_arrow_right</span> Membalas komentar
-                      </span>
+                <form 
+                  ref={commentFormRef}
+                  className="comment-form-container" 
+                  onSubmit={handleCommentSubmit}
+                >
+                  {replyingTo && (
+                    <div className="replying-banner-active">
+                      <div className="replying-banner-left">
+                        <div className="replying-banner-icon-box">
+                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>reply</span>
+                        </div>
+                        <div className="replying-banner-details">
+                          <div className="replying-banner-title">
+                            Membalas komentar <strong>@{replyingTo.authorName}</strong>
+                          </div>
+                          <div className="replying-banner-quote">
+                            &ldquo;{replyingTo.content.length > 80 ? replyingTo.content.substring(0, 80) + '...' : replyingTo.content}&rdquo;
+                          </div>
+                        </div>
+                      </div>
                       <button 
                         type="button" 
-                        onClick={() => setReplyingToId(null)}
-                        style={{ cursor: 'pointer', fontSize: 11, textDecoration: 'underline' }}
+                        className="replying-banner-cancel-btn"
+                        onClick={handleCancelReply}
+                        title="Batalkan balasan"
                       >
-                        Batal
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                        <span>Batal</span>
                       </button>
                     </div>
                   )}
@@ -281,8 +349,9 @@ export default function ArtworkDetail({
 
                   <div className="comment-box-wrapper" style={{ marginTop: 8 }}>
                     <textarea
+                      ref={textareaRef}
                       className="comment-textarea"
-                      placeholder="Tulis komentar yang bermakna..."
+                      placeholder={replyingTo ? `Tulis balasan untuk @${replyingTo.authorName}...` : "Tulis komentar yang bermakna..."}
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       rows={3}
@@ -295,7 +364,7 @@ export default function ArtworkDetail({
                         className="submit-comment-btn"
                         disabled={submitting || !commentText.trim() || !authorName.trim()}
                       >
-                        {submitting ? 'Mengirim...' : 'Kirim'}
+                        {submitting ? 'Mengirim...' : (replyingTo ? 'Kirim Balasan' : 'Kirim')}
                       </button>
                     </div>
                   </div>
