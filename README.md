@@ -16,17 +16,21 @@ Implementasi dibuat presisi berdasarkan draft Figma (`designs / design a`):
    - Kartu kelas dengan pratinjau tumpukan 8 karya (*stacked artwork deck*) dan tombol panah buka galeri (`↗`).
    - Penghitung dinamis kelas dan total karya.
 3. **Detail Karya Siswa**:
+   - Header metadata format (`PNG`) dan nomor urut karya (`Karya 01 / 08`) diposisikan rapi di atas bingkai poster.
    - Tampilan poster beresolusi tinggi dengan mode perbesar (*lightbox*).
    - Navigasi karya sebelumnya & berikutnya dalam kelas.
    - Tombol **Suka** interaktif (tersimpan secara lokal & database).
    - **Diskusi Komentar Real-time (Live)** dengan dukungan balasan resmi pembuat (*creator badge*).
    - Tombol tautan eksternal game AI siswa (`Buka tautan karya XX ↗`).
-4. **Panel Pengelola (Admin Page)**:
-   - Tampilan selaras dengan estetika pameran.
+4. **Panel Pengelola Terpisah (`/admin`)**:
+   - Terisolasi penuh di rute terpisah (`/admin`) dan tidak dapat dilihat dari halaman publik.
    - Terlindungi kode sandi pengelola (default: `gema2026`).
-   - Kelola kelas (tambah, edit, hapus).
-   - Kelola karya & tautan game (tambah, edit, hapus poster & URL game).
-   - Moderasi komentar & kirim balasan pembuat secara langsung.
+   - **Kelola Kelas**: Tambah kelas baru atau hapus kelas yang sudah tidak digunakan.
+   - **Kelola Karya & Game**: Tambah, edit, atau hapus detail proyek, kelompok, dan URL game.
+   - **Kontrol Penuh Interaksi**:
+     - Ubah jumlah suka/likes secara langsung untuk tiap karya.
+     - Moderasi komentar: edit isi komentar, ubah nama pengirim, pasang/lepas tanda kreator, dan hapus komentar.
+   - **Impor Massal Spreadsheet & Google Drive**: Salin dan tempel data dari Google Sheets / Excel, secara otomatis mengonversi tautan poster Google Drive menjadi gambar CDN yang langsung tampil.
    - Pengaturan Supabase & tombol reset data demo.
 
 ---
@@ -50,6 +54,23 @@ npm run dev
 
 # Buka http://localhost:5173 di browser Anda.
 ```
+
+---
+
+## 🔐 Akses & Fitur Panel Admin
+
+Untuk menjaga kemurnian dan estetika pameran publik, panel pengelola diletakkan pada halaman rute tersendiri:
+
+- **Alamat URL Admin**: Akses langsung ke [`http://localhost:5173/admin`](http://localhost:5173/admin) (atau `/#admin`).
+- **Kata Sandi Default**: `gema2026` (dapat diubah melalui variabel `VITE_ADMIN_PASSCODE`).
+- **Tampilan Publik Bersih**: Navigasi utama dan footer tidak menampilkan tombol maupun tautan admin.
+
+### 📋 Cara Impor Data Spreadsheet & Google Drive
+Ketika Anda menerima spreadsheet berisi daftar karya siswa:
+1. Masuk ke halaman `/admin` &rarr; buka tab **"Impor Spreadsheet & Drive"**.
+2. Salin baris data dari Google Sheets / Excel (format kolom: `Kelas | Judul | Pembuat | Link Drive Poster | Link Game | Deskripsi`).
+3. Tempelkan ke kotak teks impor dan klik **"Proses & Simpan Semua Karya"**.
+4. Sistem otomatis mendeteksi ID berkas dari tautan Google Drive dan mengubahnya menjadi format CDN langsung (`https://lh3.googleusercontent.com/d/...`), sekaligus otomatis mendaftarkan kelas yang belum ada.
 
 ---
 
@@ -80,10 +101,4 @@ VITE_ADMIN_PASSCODE=gema2026
 2. Framework preset: **Vite**.
 3. Masukkan variabel lingkungan di atas pada bagian **Environment Variables**.
 4. Klik **Deploy**!
-Berkas `vercel.json` sudah tersedia untuk menjamin rute SPA berfungsi mulus tanpa galat 404.
-
----
-
-## 🔐 Akses Admin
-- Tombol **Admin** dapat diakses di bilah navigasi kanan atas.
-- Kata sandi default: `gema2026` (dapat diubah melalui `VITE_ADMIN_PASSCODE`).
+Berkas `vercel.json` sudah tersedia untuk menjamin rute SPA (termasuk `/admin`) berfungsi mulus tanpa galat 404.

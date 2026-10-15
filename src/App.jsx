@@ -23,17 +23,28 @@ import {
 } from './lib/supabase';
 
 export default function App() {
+  // Route state: 'PUBLIC' | 'ADMIN'
+  const [currentRoute, setCurrentRoute] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (path === '/admin' || path.startsWith('/admin') || hash === '#admin') {
+        return 'ADMIN';
+      }
+    }
+    return 'PUBLIC';
+  });
+
   const [showIntro, setShowIntro] = useState(true);
   const [classes, setClasses] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Active view: 'INDEX' | 'DETAIL'
+  // Active public view: 'INDEX' | 'DETAIL'
   const [activeView, setActiveView] = useState('INDEX');
   const [selectedProjectId, setSelectedProjectId] = useState(null);
 
-  // Modals
-  const [adminOpen, setAdminOpen] = useState(false);
+  // Modal
   const [exhibitionInfoOpen, setExhibitionInfoOpen] = useState(false);
 
   // Load Initial Data
@@ -107,6 +118,24 @@ export default function App() {
             return proj;
           })
         );
+      } else if (event.type === 'COMMENT_UPDATED') {
+        setProjects((prev) =>
+          prev.map((proj) => {
+            if (proj.id === event.projectId && proj.comments) {
+              const updatedComments = proj.comments.map(c => {
+                if (c.id === event.commentId) {
+                  return { ...c, ...event.updatedFields };
+                }
+                if (c.replies) {
+                  c.replies = c.replies.map(r => r.id === event.commentId ? { ...r, ...event.updatedFields } : r);
+                }
+                return c;
+              });
+              return { ...proj, comments: updatedComments };
+            }
+            return proj;
+          })
+        );
       } else if (event.type === 'LIKE_UPDATED') {
         setProjects((prev) => 
           prev.map((proj) => 
@@ -114,20 +143,27 @@ export default function App() {
           )
         );
       } else {
-        // Full refresh on classes or projects changes
+        // Full refresh on classes or projects changes or batch import
         loadData();
       }
     });
 
-    // Browser back/forward navigation handler
+    // Browser URL / back / forward navigation handler
     const handlePopState = () => {
+      const path = window.location.pathname;
       const hash = window.location.hash;
-      if (hash && hash.startsWith('#karya-')) {
-        const id = hash.replace('#karya-', '');
-        setSelectedProjectId(id);
-        setActiveView('DETAIL');
+
+      if (path === '/admin' || path.startsWith('/admin') || hash === '#admin') {
+        setCurrentRoute('ADMIN');
       } else {
-        setActiveView('INDEX');
+        setCurrentRoute('PUBLIC');
+        if (hash && hash.startsWith('#karya-')) {
+          const id = hash.replace('#karya-', '');
+          setSelectedProjectId(id);
+          setActiveView('DETAIL');
+        } else {
+          setActiveView('INDEX');
+        }
       }
     };
 
@@ -156,7 +192,12 @@ export default function App() {
 
   const handleNavigateHome = () => {
     setActiveView('INDEX');
-    window.location.hash = '';
+    setCurrentRoute('PUBLIC');
+    if (window.location.pathname === '/admin') {
+      window.history.pushState({}, '', '/');
+    } else {
+      window.location.hash = '';
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -221,6 +262,8 @@ export default function App() {
   const handleDeleteClass = async (classId) => {
     const updated = await deleteClass(classId);
     setClasses(updated);
+    // Also remove orphaned projects belonging to deleted class
+    setProjects((prev) => prev.filter(p => p.classId !== classId));
   };
 
   const handleSaveProject = async (projectData) => {
@@ -236,7 +279,28 @@ export default function App() {
     }
   };
 
-  // Find currently viewed project
+  // -------------------------------------------------------------
+  // Dedicated Admin Route View (/admin)
+  // -------------------------------------------------------------
+  if (currentRoute === 'ADMIN') {
+    return (
+      <AdminPage
+        classes={classes}
+        projects={projects}
+        onSaveClass={handleSaveClass}
+        onDeleteClass={handleDeleteClass}
+        onSaveProject={handleSaveProject}
+        onDeleteProject={handleDeleteProject}
+        onAddComment={handleAddComment}
+        onDeleteComment={handleDeleteComment}
+        onNavigateHome={handleNavigateHome}
+      />
+    );
+  }
+
+  // -------------------------------------------------------------
+  // Public Exhibition Route View (/)
+  // -------------------------------------------------------------
   const currentProject = projects.find(p => p.id === selectedProjectId) || projects[0];
   const currentClass = currentProject 
     ? classes.find(c => c.id === currentProject.classId) 
@@ -252,13 +316,11 @@ export default function App() {
         <IntroScreen onComplete={() => setShowIntro(false)} />
       )}
 
-      {/* Main Exhibition Header */}
+      {/* Main Public Exhibition Header (No admin instances) */}
       <Header
         activeView={activeView}
         onNavigateHome={handleNavigateHome}
         onOpenExhibitionInfo={() => setExhibitionInfoOpen(true)}
-        onOpenAdmin={() => setAdminOpen(true)}
-        isSupabaseOnline={isSupabaseConfigured}
       />
 
       {/* Body Views */}
@@ -286,22 +348,8 @@ export default function App() {
         />
       )}
 
-      {/* Exhibition Footer */}
-      <Footer onOpenAdmin={() => setAdminOpen(true)} />
-
-      {/* Admin Panel Modal */}
-      <AdminPage
-        isOpen={adminOpen}
-        onClose={() => setAdminOpen(false)}
-        classes={classes}
-        projects={projects}
-        onSaveClass={handleSaveClass}
-        onDeleteClass={handleDeleteClass}
-        onSaveProject={handleSaveProject}
-        onDeleteProject={handleDeleteProject}
-        onAddComment={handleAddComment}
-        onDeleteComment={handleDeleteComment}
-      />
+      {/* Public Exhibition Footer */}
+      <Footer />
 
       {/* Exhibition Context Modal */}
       <ExhibitionModal

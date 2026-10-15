@@ -102,32 +102,35 @@ export default function ArtworkDetail({
 
       {/* 2-Column Main Layout */}
       <div className="artwork-layout-grid">
-        {/* Left Column: Artwork / Poster Canvas */}
-        <section className="artwork-poster-canvas">
-          <div className="poster-metadata-header">
-            <span>{project.format || 'PNG'}</span>
-            <span>Karya {pieceNumber} / {totalInClass}</span>
+        {/* Left Column: Artwork / Poster Column */}
+        <section className="artwork-poster-column">
+          {/* Metadata Header Above Poster */}
+          <div className="poster-metadata-header-top">
+            <span className="metadata-badge-format">{project.format || 'PNG'}</span>
+            <span className="metadata-badge-piece">Karya {pieceNumber} / {totalInClass}</span>
           </div>
 
-          <div 
-            className="poster-image-wrapper"
-            onClick={() => setLightboxOpen(true)}
-            title="Klik untuk memperbesar poster karya"
-          >
-            {project.posterUrl ? (
-              <img 
-                src={project.posterUrl} 
-                alt={`${project.title} - Poster Karya Siswa`}
-                loading="eager" 
-              />
-            ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                <div>Tempat karya</div>
-              </div>
-            )}
-          </div>
+          <div className="artwork-poster-canvas">
+            <div 
+              className="poster-image-wrapper"
+              onClick={() => setLightboxOpen(true)}
+              title="Klik untuk memperbesar poster karya"
+            >
+              {project.posterUrl ? (
+                <img 
+                  src={project.posterUrl} 
+                  alt={`${project.title} - Poster Karya Siswa`}
+                  loading="eager" 
+                />
+              ) : (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <div>Tempat karya</div>
+                </div>
+              )}
+            </div>
 
-          <div className="poster-baseline-rule" />
+            <div className="poster-baseline-rule" />
+          </div>
         </section>
 
         {/* Right Column: Identity, Discussion & External Game Link */}
