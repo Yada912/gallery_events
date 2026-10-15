@@ -11,8 +11,8 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
+  supabaseUrl &&
+  supabaseAnonKey &&
   supabaseUrl !== 'https://your-project-id.supabase.co' &&
   !supabaseUrl.includes('your-project-id')
 );
@@ -265,7 +265,7 @@ export async function toggleLikeProject(projectId) {
   let userLikes = [];
   try {
     userLikes = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIKED_PROJECTS) || '[]');
-  } catch {}
+  } catch { }
 
   const newLikedState = !liked;
   if (newLikedState) {
@@ -931,8 +931,8 @@ export async function consumeGroupToken(inputKey, projectId = '') {
   return updated;
 }
 
-// Backward compatible single-use key generator & validator
-export async function generateAccessKeys(count = 10) {
+// Standard standalone / free-floating key generator (for emergency edits / slipped additions)
+export async function generateAccessKeys(count = 10, label = 'Kunci Standalone / Bebas') {
   const current = await fetchAccessKeys();
   const existingSet = new Set(current.map(k => k.key));
   const newKeys = [];
@@ -942,12 +942,12 @@ export async function generateAccessKeys(count = 10) {
     do {
       candidate = String(Math.floor(100000 + Math.random() * 900000));
     } while (existingSet.has(candidate));
-    
+
     existingSet.add(candidate);
     newKeys.push({
       key: candidate,
       classId: '',
-      groupName: `Kelompok ${i + 1}`,
+      groupName: label,
       projectId: '',
       isUsed: false,
       usedAt: null,
@@ -957,6 +957,8 @@ export async function generateAccessKeys(count = 10) {
 
   if (isSupabaseConfigured) {
     try {
+
+
       const dbPayload = newKeys.map(k => ({
         key: k.key,
         class_id: null,
@@ -988,7 +990,7 @@ export async function deleteAccessKey(key) {
   if (isSupabaseConfigured) {
     try {
       await supabase.from('access_keys').delete().eq('key', key);
-    } catch {}
+    } catch { }
   }
   const current = await fetchAccessKeys();
   const updated = current.filter(k => k.key !== key);
@@ -1001,7 +1003,7 @@ export async function clearUsedAccessKeys() {
   if (isSupabaseConfigured) {
     try {
       await supabase.from('access_keys').delete().eq('is_used', true);
-    } catch {}
+    } catch { }
   }
   const current = await fetchAccessKeys();
   const updated = current.filter(k => !k.isUsed);

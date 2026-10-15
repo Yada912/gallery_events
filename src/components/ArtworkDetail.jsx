@@ -1,14 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Heart, 
-  MessageSquare, 
-  ArrowUpRight,
-  Maximize2,
-  X,
-  CornerDownRight
-} from 'lucide-react';
 
 export default function ArtworkDetail({
   project,
@@ -45,12 +35,16 @@ export default function ArtworkDetail({
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
+    if (!authorName.trim()) {
+      alert('Mohon masukkan nama Anda sebelum mengirim komentar.');
+      return;
+    }
     if (!commentText.trim()) return;
 
     setSubmitting(true);
     try {
       await onAddComment(project.id, {
-        authorName: authorName.trim() || 'Anonim',
+        authorName: authorName.trim(),
         content: commentText.trim(),
         parentId: replyingToId,
         isCreator: false
@@ -71,7 +65,7 @@ export default function ArtworkDetail({
         role="button"
         tabIndex={0}
       >
-        <ArrowLeft size={16} />
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
         <span>Semua kelas / {currentClass?.name || 'Galeri'}</span>
       </div>
 
@@ -82,7 +76,7 @@ export default function ArtworkDetail({
           disabled={!prevProject}
           onClick={() => prevProject && onSelectProject(prevProject)}
         >
-          <ArrowLeft size={16} />
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
           <span>Karya sebelumnya</span>
         </button>
 
@@ -96,7 +90,7 @@ export default function ArtworkDetail({
           onClick={() => nextProject && onSelectProject(nextProject)}
         >
           <span>Karya berikutnya</span>
-          <ArrowRight size={16} />
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
         </button>
       </div>
 
@@ -153,17 +147,44 @@ export default function ArtworkDetail({
               onClick={() => onToggleLike(project.id)}
               title="Berikan semangat dan apresiasi karya siswa ini"
             >
-              <Heart 
-                size={16} 
-                fill={isLiked ? '#e0245e' : 'none'} 
-                color={isLiked ? '#e0245e' : 'currentColor'} 
-              />
+              <span 
+                className="material-symbols-outlined" 
+                style={{ 
+                  fontSize: 18, 
+                  fontVariationSettings: isLiked ? "'FILL' 1" : "'FILL' 0",
+                  color: isLiked ? '#e0245e' : 'currentColor'
+                }}
+              >
+                favorite
+              </span>
               <span>Suka &middot; {project.likesCount || 0}</span>
             </button>
 
             <div className="comment-count-badge">
-              <MessageSquare size={16} />
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chat_bubble</span>
               <span>{commentCount}</span>
+            </div>
+          </div>
+
+          {/* External Playable Game Link (Positioned Above Comments) */}
+          <div className="external-link-card" style={{ marginTop: 18, marginBottom: 20 }}>
+            <a
+              href={project.gameUrl || '#'}
+              target={project.gameUrl ? "_blank" : undefined}
+              rel="noreferrer"
+              className="external-game-action-btn"
+              onClick={(e) => {
+                if (!project.gameUrl) {
+                  e.preventDefault();
+                  alert('Tautan game eksternal untuk karya ini sedang dipersiapkan oleh tim siswa!');
+                }
+              }}
+            >
+              <span>Buka Karya</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>north_east</span>
+            </a>
+            <div className="external-link-status">
+              {project.gameUrl ? `Tautan karya & game AI siswa · ${project.gameUrl}` : 'Tautan game eksternal sedang dipersiapkan oleh tim siswa'}
             </div>
           </div>
 
@@ -230,7 +251,7 @@ export default function ArtworkDetail({
                   {replyingToId && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-subtle)', padding: '6px 10px', borderRadius: 2 }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <CornerDownRight size={14} /> Membalas komentar
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>subdirectory_arrow_right</span> Membalas komentar
                       </span>
                       <button 
                         type="button" 
@@ -242,17 +263,20 @@ export default function ArtworkDetail({
                     </div>
                   )}
 
-                  <label className="field-label" htmlFor="author-input">Nama (opsional)</label>
+                  <label className="field-label" htmlFor="author-input">
+                    Nama <span style={{ color: '#d93025' }}>*</span>
+                  </label>
                   <input
                     id="author-input"
                     type="text"
                     className="form-input-text"
-                    placeholder="Nama Anda"
+                    placeholder="nama-kelas-absen (Contoh: Wayan-X1-12)"
                     value={authorName}
                     onChange={(e) => setAuthorName(e.target.value)}
+                    required
                   />
                   <div className="form-guidance-caption">
-                    Kosongkan untuk mengirim secara anonim. Tidak perlu masuk.
+                    Format: <strong>nama-kelas-absen</strong> (Wajib diisi sebelum mengirimkan komentar).
                   </div>
 
                   <div className="comment-box-wrapper" style={{ marginTop: 8 }}>
@@ -269,7 +293,7 @@ export default function ArtworkDetail({
                       <button 
                         type="submit" 
                         className="submit-comment-btn"
-                        disabled={submitting || !commentText.trim()}
+                        disabled={submitting || !commentText.trim() || !authorName.trim()}
                       >
                         {submitting ? 'Mengirim...' : 'Kirim'}
                       </button>
@@ -278,28 +302,6 @@ export default function ArtworkDetail({
                 </form>
               </>
             )}
-          </div>
-
-          {/* External Playable Game Link */}
-          <div className="external-link-card">
-            <a
-              href={project.gameUrl || '#'}
-              target={project.gameUrl ? "_blank" : undefined}
-              rel="noreferrer"
-              className="external-game-action-btn"
-              onClick={(e) => {
-                if (!project.gameUrl) {
-                  e.preventDefault();
-                  alert('Tautan game eksternal untuk karya ini sedang dipersiapkan oleh tim siswa!');
-                }
-              }}
-            >
-              <span>Buka tautan karya {pieceNumber}</span>
-              <ArrowUpRight size={18} />
-            </a>
-            <div className="external-link-status">
-              Tautan eksternal karya {pieceNumber} {project.gameUrl ? `· ${project.gameUrl}` : '· Belum tersedia'}
-            </div>
           </div>
         </section>
       </div>
@@ -332,7 +334,7 @@ export default function ArtworkDetail({
             }}
             onClick={() => setLightboxOpen(false)}
           >
-            <X size={24} />
+            <span className="material-symbols-outlined" style={{ fontSize: 24, color: '#ffffff' }}>close</span>
           </button>
           <img 
             src={project.posterUrl} 

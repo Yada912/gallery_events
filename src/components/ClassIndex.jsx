@@ -1,5 +1,4 @@
 import React from 'react';
-import { ArrowUpRight } from 'lucide-react';
 
 export default function ClassIndex({ classes, projects, onSelectClass, onSelectProject, onOpenStudentPortal }) {
   const totalClasses = classes.length;
@@ -154,7 +153,7 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                   className="open-arrow-btn"
                   title={classProjects.length > 0 ? `Buka galeri ${cls.name}` : `Input karya ${cls.name}`}
                 >
-                  <ArrowUpRight size={18} />
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>north_east</span>
                 </div>
               </div>
             </article>

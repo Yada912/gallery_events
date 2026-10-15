@@ -11,12 +11,24 @@ export default function Header({
       <div className="container">
         <div className="site-header-inner">
           <div 
-            className="brand-title"
+            className="brand-container"
             onClick={onNavigateHome}
             role="button"
             tabIndex={0}
           >
-            <span>Gema Belajar</span>
+            <div className="header-logos-wrapper">
+              <img 
+                src="/logos/kemendikbud.svg" 
+                alt="Logo Kementerian Pendidikan dan Kebudayaan"
+                className="header-logo logo-kemendikbud"
+              />
+              <img 
+                src="/logos/harapan.png" 
+                alt="Logo SMAS Kristen Harapan"
+                className="header-logo logo-harapan"
+              />
+            </div>
+            <span className="brand-title">Gema Belajar</span>
           </div>
 
           {/* Navigation (Clean Public View + Student Edit Portal) */}

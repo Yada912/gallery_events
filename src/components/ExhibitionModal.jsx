@@ -1,5 +1,4 @@
 import React from 'react';
-import { X, Sparkles, BookOpen, Compass, Heart } from 'lucide-react';
 
 export default function ExhibitionModal({ isOpen, onClose }) {
   if (!isOpen) return null;
@@ -17,9 +16,9 @@ export default function ExhibitionModal({ isOpen, onClose }) {
           </div>
           <button 
             onClick={onClose}
-            style={{ padding: 4, cursor: 'pointer', color: 'var(--text-secondary)' }}
+            style={{ padding: 4, cursor: 'pointer', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center' }}
           >
-            <X size={20} />
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
           </button>
         </div>
 
@@ -39,7 +38,7 @@ export default function ExhibitionModal({ isOpen, onClose }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div style={{ background: 'var(--bg-subtle)', padding: 16, borderRadius: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
-                <Sparkles size={16} color="#d97706" />
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#d97706' }}>auto_awesome</span>
                 <span>Karya Game AI</span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
@@ -49,7 +48,7 @@ export default function ExhibitionModal({ isOpen, onClose }) {
 
             <div style={{ background: 'var(--bg-subtle)', padding: 16, borderRadius: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
-                <BookOpen size={16} color="#2563eb" />
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#2563eb' }}>menu_book</span>
                 <span>Poster Seni</span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>

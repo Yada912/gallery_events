@@ -75,9 +75,10 @@ Untuk menjaga kemurnian dan estetika pameran publik, panel pengelola diletakkan 
 Setiap kelompok memiliki **1 token 6-digit unik** dan **hanya 1 kesempatan** untuk menginput karya mereka:
 1. Buka panel admin di `/admin` &rarr; tab **"Kunci Akses Siswa"**.
 2. **Pilihan Pembuatan Token**:
-   - **⚡ 1-Klik Buat Token Semua Kelas**: Otomatis menghasilkan 10 token untuk masing-masing kelas (Kelompok 1 s.d. 10 x 7 kelas = 70 token).
+   - **⚡ 1-Klik Buat Token Semua Kelas**: Otomatis menghasilkan 10 token untuk masing-masing kelas (Kelompok 1 s.d. 10 x seluruh kelas = ~70 token).
    - **+ Tambah Satu Kelompok**: Pilih kelas dan masukkan nama kelompok spesifik (misal: *Kelompok 3 - Tim Wayan*).
    - **📋 Daftarkan Banyak Kelompok**: Paste daftar nama kelompok dari catatan/spreadsheet baris per baris.
+   - **🔑 Kunci Standalone / Bebas (Susulan / Darurat)**: Menghasilkan kunci darurat/bebas yang tidak terikat ke kelompok tertentu. Siswa pemegang kunci ini dapat memilih kelas mereka sendiri, serta memilih untuk menambah karya baru (susulan) atau memperbaiki karya yang ada jika ada perubahan yang terlewat.
 3. **Fitur Salin Cepat Admin**:
    - **"Salin Semua Token untuk Pengumuman Grup"**: Menghasilkan pesan berformat WhatsApp/Telegram yang rapi, dikelompokkan per kelas dengan tautan portal dan token masing-masing kelompok, siap dibagikan ke grup publik peserta.
    - **"Salin Daftar Kunci Saja (List)"**: Menghasilkan daftar tabular (`Kunci \t Kelas \t Kelompok \t Status`) siap ditempel ke Google Sheets/Excel.

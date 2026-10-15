@@ -122,20 +122,74 @@ a {
   }
 }
 
+.brand-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.brand-container:hover .brand-title {
+  opacity: 0.85;
+}
+
+.header-logos-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 14px;
+  border-right: 1px solid var(--border-medium);
+}
+
+.header-logo {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.brand-container:hover .header-logo {
+  transform: scale(1.03);
+}
+
+.logo-kemendikbud {
+  height: 40px;
+}
+
+.logo-harapan {
+  height: 44px;
+}
+
+@media (max-width: 900px) {
+  .brand-container {
+    gap: 10px;
+  }
+  .header-logos-wrapper {
+    gap: 8px;
+    padding-right: 10px;
+  }
+  .logo-kemendikbud {
+    height: 32px;
+  }
+  .logo-harapan {
+    height: 34px;
+  }
+  .brand-title {
+    font-size: 22px;
+  }
+}
+
 .brand-title {
   font-family: var(--font-serif);
   font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--text-primary);
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-.brand-title:hover {
-  opacity: 0.85;
 }
 
 .header-nav {

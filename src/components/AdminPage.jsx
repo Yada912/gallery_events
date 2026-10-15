@@ -1,29 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Check, 
-  ShieldCheck, 
-  Database, 
-  MessageSquare, 
-  Layers, 
-  ExternalLink,
-  RefreshCw,
-  Copy,
-  Lock,
-  ArrowLeft,
-  Heart,
-  FileSpreadsheet,
-  Upload,
-  Eye,
-  CheckCircle,
-  AlertCircle,
-  Key,
-  Users,
-  Share2,
-  List
-} from 'lucide-react';
+
+// Google Material Symbols Icon Components
+const Plus = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>add</span>
+);
+const Trash2 = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>delete</span>
+);
+const Edit3 = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>edit</span>
+);
+const Check = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>check</span>
+);
+const ShieldCheck = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>verified</span>
+);
+const Database = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>database</span>
+);
+const MessageSquare = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>chat_bubble</span>
+);
+const Layers = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>layers</span>
+);
+const ExternalLink = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>open_in_new</span>
+);
+const RefreshCw = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>refresh</span>
+);
+const Copy = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>content_copy</span>
+);
+const Lock = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>lock</span>
+);
+const ArrowLeft = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>arrow_back</span>
+);
+const Heart = ({ size = 18, className = '', style = {}, fill = 'none', color = 'currentColor' }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, fontVariationSettings: fill !== 'none' ? "'FILL' 1" : "'FILL' 0", color, ...style }}>favorite</span>
+);
+const FileSpreadsheet = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>table_chart</span>
+);
+const Upload = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>upload</span>
+);
+const Eye = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>visibility</span>
+);
+const CheckCircle = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>check_circle</span>
+);
+const AlertCircle = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>error</span>
+);
+const Key = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>key</span>
+);
+const Users = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>groups</span>
+);
+const Share2 = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>share</span>
+);
+const List = ({ size = 18, className = '', style = {} }) => (
+  <span className={`material-symbols-outlined ${className}`} style={{ fontSize: size, verticalAlign: 'middle', lineHeight: 1, ...style }}>format_list_bulleted</span>
+);
 import { 
   isSupabaseConfigured, 
   resetToDemoData, 
@@ -72,12 +118,14 @@ export default function AdminPage({
   const [keySearchQuery, setKeySearchQuery] = useState('');
 
   // Token generator form inputs
-  const [tokenGenTab, setTokenGenTab] = useState('ALL_CLASSES'); // 'ALL_CLASSES', 'SINGLE_GROUP', 'BULK_TEXT'
+  const [tokenGenTab, setTokenGenTab] = useState('ALL_CLASSES'); // 'ALL_CLASSES', 'SINGLE_GROUP', 'BULK_TEXT', 'STANDALONE'
   const [groupsPerClassCount, setGroupsPerClassCount] = useState(10);
   const [singleClassId, setSingleClassId] = useState('');
   const [singleGroupName, setSingleGroupName] = useState('');
   const [bulkClassId, setBulkClassId] = useState('');
   const [bulkGroupsText, setBulkGroupsText] = useState('');
+  const [standaloneKeysCount, setStandaloneKeysCount] = useState(10);
+  const [standaloneLabel, setStandaloneLabel] = useState('Kunci Standalone / Bebas (Susulan)');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -1335,11 +1383,15 @@ export default function AdminPage({
                         border: '1px solid var(--border-medium)',
                         background: tokenGenTab === 'ALL_CLASSES' ? 'var(--text-primary)' : 'var(--bg-canvas)',
                         color: tokenGenTab === 'ALL_CLASSES' ? '#ffffff' : 'var(--text-secondary)',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6
                       }}
                       onClick={() => setTokenGenTab('ALL_CLASSES')}
                     >
-                      ⚡ 1-Klik Buat Token Semua Kelas (~70 Kelompok)
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>bolt</span>
+                      <span>1-Klik Buat Token Semua Kelas (~70 Kelompok)</span>
                     </button>
 
                     <button
@@ -1352,11 +1404,15 @@ export default function AdminPage({
                         border: '1px solid var(--border-medium)',
                         background: tokenGenTab === 'SINGLE_GROUP' ? 'var(--text-primary)' : 'var(--bg-canvas)',
                         color: tokenGenTab === 'SINGLE_GROUP' ? '#ffffff' : 'var(--text-secondary)',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6
                       }}
                       onClick={() => setTokenGenTab('SINGLE_GROUP')}
                     >
-                      + Tambah Satu Kelompok
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>group_add</span>
+                      <span>Tambah Satu Kelompok</span>
                     </button>
 
                     <button
@@ -1369,11 +1425,36 @@ export default function AdminPage({
                         border: '1px solid var(--border-medium)',
                         background: tokenGenTab === 'BULK_TEXT' ? 'var(--text-primary)' : 'var(--bg-canvas)',
                         color: tokenGenTab === 'BULK_TEXT' ? '#ffffff' : 'var(--text-secondary)',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6
                       }}
                       onClick={() => setTokenGenTab('BULK_TEXT')}
                     >
-                      📋 Daftarkan Banyak Kelompok (Paste Baris)
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>format_list_bulleted</span>
+                      <span>Daftarkan Banyak Kelompok (Paste Baris)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: 4,
+                        border: '1px solid var(--border-medium)',
+                        background: tokenGenTab === 'STANDALONE' ? 'var(--text-primary)' : 'var(--bg-canvas)',
+                        color: tokenGenTab === 'STANDALONE' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                      onClick={() => setTokenGenTab('STANDALONE')}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>key</span>
+                      <span>Kunci Standalone / Bebas (Susulan / Darurat)</span>
                     </button>
                   </div>
 
@@ -1566,6 +1647,82 @@ export default function AdminPage({
                       </button>
                     </form>
                   )}
+
+                  {/* TAB D: Standalone / Free-Floating Emergency Keys Generator */}
+                  {tokenGenTab === 'STANDALONE' && (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const count = parseInt(standaloneKeysCount, 10) || 10;
+                        const label = standaloneLabel.trim() || 'Kunci Standalone / Bebas (Susulan)';
+                        setIsGeneratingKeys(true);
+                        try {
+                          const updated = await generateAccessKeys(count, label);
+                          setAccessKeys(updated);
+                          alert(`Berhasil membuat ${count} kunci standalone / bebas baru!`);
+                        } catch (err) {
+                          alert('Gagal membuat kunci standalone: ' + err.message);
+                        } finally {
+                          setIsGeneratingKeys(false);
+                        }
+                      }}
+                      style={{ background: 'var(--bg-subtle)', padding: 20, borderRadius: 4, border: '1px solid var(--border-subtle)' }}
+                    >
+                      <div style={{
+                        background: '#fef7e0',
+                        border: '1px solid #f9ab00',
+                        borderRadius: 4,
+                        padding: '12px 16px',
+                        marginBottom: 16,
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        color: '#7c4a03'
+                      }}>
+                        <strong>Tentang Kunci Standalone / Bebas:</strong> Kunci ini tidak terikat ke kelompok atau kelas tertentu. Ketika siswa memasukkan kunci ini di portal, mereka dapat memilih kelas sendiri, serta memilih untuk <em>menambah karya baru (susulan)</em> atau <em>memperbaiki karya yang sudah ada</em>. Sangat fleksibel untuk kelompok susulan atau revisi tak terduga.
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 16 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                            Jumlah Kunci yang Ingin Dibuat:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            className="form-input-text"
+                            style={{ width: '100%', height: 38, padding: '0 12px' }}
+                            value={standaloneKeysCount}
+                            onChange={(e) => setStandaloneKeysCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                            Label / Catatan Kunci:
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input-text"
+                            style={{ width: '100%', height: 38, padding: '0 12px' }}
+                            value={standaloneLabel}
+                            onChange={(e) => setStandaloneLabel(e.target.value)}
+                            placeholder="Contoh: Kunci Standalone / Bebas (Susulan)"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isGeneratingKeys}
+                        className="submit-comment-btn"
+                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <RefreshCw size={14} className={isGeneratingKeys ? 'spin' : ''} />
+                        <span>{isGeneratingKeys ? 'Membuat Kunci...' : `Generate ${standaloneKeysCount} Kunci Standalone / Bebas`}</span>
+                      </button>
+                    </form>
+                  )}
                 </div>
 
                 {/* Token Table & Search Filter */}
@@ -1583,7 +1740,8 @@ export default function AdminPage({
                         value={filterKeyClass}
                         onChange={(e) => setFilterKeyClass(e.target.value)}
                       >
-                        <option value="ALL">Semua Kelas</option>
+                        <option value="ALL">Semua Kelas &amp; Bebas</option>
+                        <option value="STANDALONE">Kunci Standalone / Bebas Saja</option>
                         {classes.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -1631,29 +1789,55 @@ export default function AdminPage({
                         <tbody>
                           {accessKeys
                             .filter(k => {
-                              const matchesClass = filterKeyClass === 'ALL' || k.classId === filterKeyClass;
+                              const isStandalone = !k.classId || 
+                                (k.groupName && (k.groupName.includes('Standalone') || k.groupName.includes('Bebas') || k.groupName.includes('Susulan')));
+                              
+                              let matchesClass = true;
+                              if (filterKeyClass === 'STANDALONE') {
+                                matchesClass = isStandalone;
+                              } else if (filterKeyClass !== 'ALL') {
+                                matchesClass = k.classId === filterKeyClass;
+                              }
+
                               const matchesSearch = !keySearchQuery ||
                                 k.key.includes(keySearchQuery) ||
                                 (k.groupName && k.groupName.toLowerCase().includes(keySearchQuery.toLowerCase()));
                               return matchesClass && matchesSearch;
                             })
                             .map((k) => {
+                              const isStandalone = !k.classId || 
+                                (k.groupName && (k.groupName.includes('Standalone') || k.groupName.includes('Bebas') || k.groupName.includes('Susulan')));
                               const cls = classes.find(c => c.id === k.classId);
-                              const className = cls ? cls.name : (k.classId || 'Umum');
+                              const className = cls ? cls.name : (k.classId || 'Bebas / Semua Kelas');
 
                               return (
                                 <tr key={k.key} style={{ borderBottom: '1px solid var(--border-subtle)', background: k.isUsed ? 'rgba(0,0,0,0.015)' : '#ffffff' }}>
                                   <td style={{ padding: '12px 14px', fontWeight: 600 }}>
-                                    <span style={{
-                                      display: 'inline-block',
-                                      padding: '2px 8px',
-                                      borderRadius: 4,
-                                      background: 'var(--bg-subtle)',
-                                      border: '1px solid var(--border-subtle)',
-                                      fontSize: 12
-                                    }}>
-                                      {className}
-                                    </span>
+                                    {isStandalone ? (
+                                      <span style={{
+                                        display: 'inline-block',
+                                        padding: '2px 8px',
+                                        borderRadius: 4,
+                                        background: '#fef7e0',
+                                        color: '#b06000',
+                                        border: '1px solid #f9ab00',
+                                        fontSize: 12,
+                                        fontWeight: 600
+                                      }}>
+                                        Bebas / Standalone
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        display: 'inline-block',
+                                        padding: '2px 8px',
+                                        borderRadius: 4,
+                                        background: 'var(--bg-subtle)',
+                                        border: '1px solid var(--border-subtle)',
+                                        fontSize: 12
+                                      }}>
+                                        {className}
+                                      </span>
+                                    )}
                                   </td>
 
                                   <td style={{ padding: '12px 14px', fontWeight: 500 }}>
