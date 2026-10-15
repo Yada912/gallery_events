@@ -1,5 +1,5 @@
 -- ========================================================
--- GEMA BELAJAR - Supabase Database Schema
+-- GEMA BELAJAR - Supabase Database Schema (Idempotent / Safe Re-run)
 -- Pameran Siswa SMAS Kristen Harapan (Penglipuran Exhibition)
 -- ========================================================
 
@@ -22,7 +22,7 @@ create table if not exists public.projects (
   piece_number text not null,
   title text not null,
   creators text not null,
-  format text default 'PNG',
+  format text default 'WEBP',
   poster_url text not null,
   game_url text default '',
   description text default '',
@@ -42,12 +42,14 @@ create table if not exists public.comments (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 4. Access Keys Table (Single-use 6-digit keys for student edits)
+-- 4. Access Keys Table (Single-use 6-digit keys for specific student groups)
 create table if not exists public.access_keys (
   key text primary key,
+  class_id text references public.classes(id) on delete cascade,
+  group_name text not null default '',
   is_used boolean default false,
   used_at timestamp with time zone,
-  used_for text default '',
+  project_id text default '',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -57,50 +59,91 @@ alter table public.projects enable row level security;
 alter table public.comments enable row level security;
 alter table public.access_keys enable row level security;
 
--- Public read access
+-- --------------------------------------------------------
+-- RLS Policies (Safe drop & create so it can be re-run safely)
+-- --------------------------------------------------------
+
+-- Classes Policies
+drop policy if exists "Allow public read access on classes" on public.classes;
 create policy "Allow public read access on classes"
   on public.classes for select using (true);
 
-create policy "Allow public read access on projects"
-  on public.projects for select using (true);
-
-create policy "Allow public read access on comments"
-  on public.comments for select using (true);
-
-create policy "Allow public read access on access_keys"
-  on public.access_keys for select using (true);
-
--- Public write access for comments & likes
-create policy "Allow public insert on comments"
-  on public.comments for insert with check (true);
-
-create policy "Allow public update likes on projects"
-  on public.projects for update using (true) with check (true);
-
-create policy "Allow update on access_keys"
-  on public.access_keys for update using (true) with check (true);
-
--- Admin CRUD access (Permissive or via Admin Key)
+drop policy if exists "Allow all operations for admin on classes" on public.classes;
 create policy "Allow all operations for admin on classes"
   on public.classes for all using (true) with check (true);
 
+-- Projects Policies
+drop policy if exists "Allow public read access on projects" on public.projects;
+create policy "Allow public read access on projects"
+  on public.projects for select using (true);
+
+drop policy if exists "Allow public update likes on projects" on public.projects;
+create policy "Allow public update likes on projects"
+  on public.projects for update using (true) with check (true);
+
+drop policy if exists "Allow all operations for admin on projects" on public.projects;
 create policy "Allow all operations for admin on projects"
   on public.projects for all using (true) with check (true);
 
+-- Comments Policies
+drop policy if exists "Allow public read access on comments" on public.comments;
+create policy "Allow public read access on comments"
+  on public.comments for select using (true);
+
+drop policy if exists "Allow public insert on comments" on public.comments;
+create policy "Allow public insert on comments"
+  on public.comments for insert with check (true);
+
+drop policy if exists "Allow all operations for admin on comments" on public.comments;
 create policy "Allow all operations for admin on comments"
   on public.comments for all using (true) with check (true);
 
+-- Access Keys Policies
+drop policy if exists "Allow public read access on access_keys" on public.access_keys;
+create policy "Allow public read access on access_keys"
+  on public.access_keys for select using (true);
+
+drop policy if exists "Allow update on access_keys" on public.access_keys;
+create policy "Allow update on access_keys"
+  on public.access_keys for update using (true) with check (true);
+
+drop policy if exists "Allow all operations on access_keys" on public.access_keys;
 create policy "Allow all operations on access_keys"
   on public.access_keys for all using (true) with check (true);
 
--- Enable Supabase Realtime
-begin;
-  drop publication if exists supabase_realtime;
-  create publication supabase_realtime for table public.comments, public.projects;
-commit;
-
--- Indexing for performance
+-- --------------------------------------------------------
+-- Performance Indexing
+-- --------------------------------------------------------
 create index if not exists idx_projects_class on public.projects(class_id);
 create index if not exists idx_comments_project on public.comments(project_id);
 create index if not exists idx_comments_created on public.comments(created_at desc);
 create index if not exists idx_access_keys_used on public.access_keys(is_used);
+create index if not exists idx_access_keys_class on public.access_keys(class_id);
+
+-- --------------------------------------------------------
+-- Enable Supabase Realtime (Safe: does NOT drop publication)
+-- --------------------------------------------------------
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' 
+    and schemaname = 'public' 
+    and tablename = 'comments'
+  ) then
+    alter publication supabase_realtime add table public.comments;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' 
+    and schemaname = 'public' 
+    and tablename = 'projects'
+  ) then
+    alter publication supabase_realtime add table public.projects;
+  end if;
+exception
+  when others then
+    -- Silently ignore if already added or publication managed externally
+    null;
+end $$;

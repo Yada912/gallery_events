@@ -19,7 +19,10 @@ import {
   Eye,
   CheckCircle,
   AlertCircle,
-  Key
+  Key,
+  Users,
+  Share2,
+  List
 } from 'lucide-react';
 import { 
   isSupabaseConfigured, 
@@ -30,6 +33,9 @@ import {
   batchImportProjects,
   fetchAccessKeys,
   generateAccessKeys,
+  createGroupToken,
+  bulkCreateGroupTokens,
+  generateTokensForAllClasses,
   deleteAccessKey,
   clearUsedAccessKeys,
   clearAllDatabaseAndDemoData
@@ -56,11 +62,22 @@ export default function AdminPage({
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Access Keys State
+  // Access Keys / Group Tokens State
   const [accessKeys, setAccessKeys] = useState([]);
   const [isGeneratingKeys, setIsGeneratingKeys] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
-  const [copiedAllKeys, setCopiedAllKeys] = useState(false);
+  const [copiedBroadcast, setCopiedBroadcast] = useState(false);
+  const [copiedList, setCopiedList] = useState(false);
+  const [filterKeyClass, setFilterKeyClass] = useState('ALL');
+  const [keySearchQuery, setKeySearchQuery] = useState('');
+
+  // Token generator form inputs
+  const [tokenGenTab, setTokenGenTab] = useState('ALL_CLASSES'); // 'ALL_CLASSES', 'SINGLE_GROUP', 'BULK_TEXT'
+  const [groupsPerClassCount, setGroupsPerClassCount] = useState(10);
+  const [singleClassId, setSingleClassId] = useState('');
+  const [singleGroupName, setSingleGroupName] = useState('');
+  const [bulkClassId, setBulkClassId] = useState('');
+  const [bulkGroupsText, setBulkGroupsText] = useState('');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -1152,61 +1169,116 @@ export default function AdminPage({
             {/* TAB 5: ACCESS KEYS FOR STUDENTS */}
             {activeTab === 'KEYS' && (
               <div>
+                {/* Header & Quick Action Card */}
                 <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24, marginBottom: 24 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <Key size={20} color="var(--accent-terracotta)" />
-                        <h3 style={{ fontSize: 18, fontWeight: 600 }}>Generator Kunci Akses Siswa (Single-Use Keys)</h3>
+                        <Key size={22} color="var(--accent-terracotta)" />
+                        <h3 style={{ fontSize: 19, fontWeight: 600 }}>Generator &amp; Kurasi Kunci Akses Kelompok</h3>
                       </div>
-                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 640, lineHeight: 1.5, margin: 0 }}>
-                        Setiap kunci terdiri dari <strong>6 digit angka acak</strong> dan hanya berlaku untuk <strong>satu kali penggunaan</strong>. Berikan kunci ini kepada siswa yang perlu mengunggah atau mengedit karya kelompok mereka di portal siswa saat acara pameran live.
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 660, lineHeight: 1.55, margin: 0 }}>
+                        Setiap kelompok siswa memiliki <strong>1 kunci akses 6-digit</strong> dan <strong>hanya 1 kesempatan</strong> untuk mengisi karya di portal siswa. Saat kunci dimasukkan di portal, siswa akan otomatis diarahkan ke kelompoknya masing-masing.
                       </p>
                     </div>
 
+                    {/* Prominent Broadcast & List Copy Buttons */}
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {/* Button 1: Copy Formatted for Public Group WhatsApp Announcement */}
                       <button
+                        type="button"
                         className="submit-comment-btn"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38 }}
-                        disabled={isGeneratingKeys}
-                        onClick={async () => {
-                          setIsGeneratingKeys(true);
-                          try {
-                            const updated = await generateAccessKeys(10);
-                            setAccessKeys(updated);
-                          } catch (err) {
-                            alert('Gagal membuat kunci: ' + err.message);
-                          } finally {
-                            setIsGeneratingKeys(false);
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 40, padding: '0 16px', background: '#075e54' }}
+                        title="Salin pesan berformat rapi untuk dibagikan di grup WhatsApp / Telegram"
+                        onClick={() => {
+                          const activeKeys = accessKeys.filter(k => !k.isUsed);
+                          if (activeKeys.length === 0) {
+                            alert('Tidak ada kunci aktif untuk dibuatkan pengumuman.');
+                            return;
                           }
+
+                          const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+                          const portalUrl = `${origin}/edit`;
+
+                          let msg = `📢 *PENGUMUMAN KUNCI AKSES PENGUNGGAHAN KARYA PAMERAN GEMA BELAJAR*\n`;
+                          msg += `*SMAS Kristen Harapan • Penglipuran Exhibition*\n\n`;
+                          msg += `Kepada seluruh perwakilan kelompok siswa, silakan buka portal berikut untuk mengunggah poster dan karya kelompok Anda:\n`;
+                          msg += `🔗 ${portalUrl}\n\n`;
+                          msg += `⚠️ *KETENTUAN PENTING:*\n`;
+                          msg += `• Setiap kelompok memiliki 1 buah token 6-digit.\n`;
+                          msg += `• Setiap token hanya berlaku *1 KALI* pengisian karya.\n`;
+                          msg += `• Masukkan 6-digit token Anda untuk langsung masuk ke formulir kelompok.\n\n`;
+
+                          // Group by class
+                          const classMap = new Map();
+                          classes.forEach(c => classMap.set(c.id, { name: c.name, items: [] }));
+                          classMap.set('umum', { name: 'Umum / Lainnya', items: [] });
+
+                          activeKeys.forEach(k => {
+                            const cId = k.classId || 'umum';
+                            if (!classMap.has(cId)) {
+                              classMap.set(cId, { name: cId.toUpperCase(), items: [] });
+                            }
+                            classMap.get(cId).items.push(k);
+                          });
+
+                          classMap.forEach(val => {
+                            if (val.items.length > 0) {
+                              msg += `══════════════════════════════\n`;
+                              msg += `📁 *KELAS: ${val.name}*\n`;
+                              msg += `══════════════════════════════\n`;
+                              val.items.forEach(k => {
+                                msg += `• ${k.groupName || 'Kelompok'}: \`${k.key}\`\n`;
+                              });
+                              msg += `\n`;
+                            }
+                          });
+
+                          msg += `_Apabila ada kendala kode atau revisi, harap segera hubungi guru pendamping atau admin pameran._`;
+
+                          navigator.clipboard.writeText(msg);
+                          setCopiedBroadcast(true);
+                          setTimeout(() => setCopiedBroadcast(false), 3000);
                         }}
                       >
-                        <RefreshCw size={15} className={isGeneratingKeys ? 'spin' : ''} />
-                        <span>{isGeneratingKeys ? 'Membuat...' : 'Buat 10 Kunci Baru'}</span>
+                        <Share2 size={16} />
+                        <span>{copiedBroadcast ? 'Pesan Siaran Tersalin!' : 'Salin Semua Token untuk Pengumuman Grup'}</span>
                       </button>
 
+                      {/* Button 2: Copy Tabular / List Format for Spreadsheets */}
                       <button
+                        type="button"
                         className="admin-badge-btn"
-                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        style={{ height: 40, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px' }}
+                        title="Salin daftar kunci format tab-separated untuk Excel atau Spreadsheet"
                         onClick={() => {
-                          const active = accessKeys.filter(k => !k.isUsed).map(k => k.key);
-                          if (active.length === 0) {
+                          const activeKeys = accessKeys.filter(k => !k.isUsed);
+                          if (activeKeys.length === 0) {
                             alert('Tidak ada kunci aktif untuk disalin.');
                             return;
                           }
-                          navigator.clipboard.writeText(active.join('\n'));
-                          setCopiedAllKeys(true);
-                          setTimeout(() => setCopiedAllKeys(false), 2500);
+
+                          let list = `KUNCI\tKELAS\tKELOMPOK\tSTATUS\n`;
+                          activeKeys.forEach(k => {
+                            const cls = classes.find(c => c.id === k.classId);
+                            const className = cls ? cls.name : (k.classId || 'Umum');
+                            list += `${k.key}\t${className}\t${k.groupName || '-'}\tAktif (1 Kesempatan)\n`;
+                          });
+
+                          navigator.clipboard.writeText(list);
+                          setCopiedList(true);
+                          setTimeout(() => setCopiedList(false), 3000);
                         }}
                       >
-                        <Copy size={15} />
-                        <span>{copiedAllKeys ? 'Tersalin!' : 'Salin Semua Kunci Aktif'}</span>
+                        <List size={16} />
+                        <span>{copiedList ? 'Daftar Kunci Tersalin!' : 'Salin Daftar Kunci Saja (List)'}</span>
                       </button>
 
                       {accessKeys.some(k => k.isUsed) && (
                         <button
+                          type="button"
                           className="admin-badge-btn"
-                          style={{ height: 38, color: '#dc3545', borderColor: '#dc3545' }}
+                          style={{ height: 40, color: '#dc3545', borderColor: '#dc3545' }}
                           onClick={async () => {
                             if (confirm('Hapus seluruh riwayat kunci yang sudah terpakai?')) {
                               const updated = await clearUsedAccessKeys();
@@ -1222,166 +1294,466 @@ export default function AdminPage({
                   </div>
 
                   {/* Stats Counter */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 20 }}>
-                    <div style={{ background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Kunci Dibuat</div>
-                      <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4 }}>{accessKeys.length}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                    <div style={{ background: 'var(--bg-subtle)', padding: '14px 18px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Token Terdaftar</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, marginTop: 4 }}>{accessKeys.length}</div>
                     </div>
-                    <div style={{ background: 'rgba(40, 167, 69, 0.08)', padding: '12px 16px', borderRadius: 4, border: '1px solid rgba(40, 167, 69, 0.2)' }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#28a745', fontWeight: 600 }}>Kunci Aktif (Siap Pakai)</div>
-                      <div style={{ fontSize: 24, fontWeight: 600, color: '#28a745', marginTop: 4 }}>
+                    <div style={{ background: 'rgba(40, 167, 69, 0.08)', padding: '14px 18px', borderRadius: 4, border: '1px solid rgba(40, 167, 69, 0.25)' }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#28a745', fontWeight: 600 }}>Token Aktif (Siap Pakai)</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: '#28a745', marginTop: 4 }}>
                         {accessKeys.filter(k => !k.isUsed).length}
                       </div>
                     </div>
-                    <div style={{ background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Kunci Sudah Digunakan</div>
-                      <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 4 }}>
+                    <div style={{ background: 'var(--bg-subtle)', padding: '14px 18px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Karya Sudah Diinput (Hangus)</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-secondary)', marginTop: 4 }}>
                         {accessKeys.filter(k => k.isUsed).length}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Active Keys List */}
-                <div style={{ marginBottom: 28 }}>
-                  <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>Kunci Aktif (Belum Digunakan)</span>
-                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)' }}>
-                      — Berikan satu kode kepada perwakilan kelompok siswa
-                    </span>
-                  </h4>
+                {/* Group Token Registration & Generator Section */}
+                <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24, marginBottom: 28 }}>
+                  <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, marginBottom: 20 }}>
+                    <h4 style={{ fontSize: 16, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                      <Users size={18} color="var(--accent-terracotta)" />
+                      <span>Pendaftaran Kelompok &amp; Pembuatan Token</span>
+                    </h4>
+                  </div>
 
-                  {accessKeys.filter(k => !k.isUsed).length === 0 ? (
-                    <div style={{ background: '#fff', border: '1px dashed var(--border-medium)', borderRadius: 4, padding: 32, textAlign: 'center' }}>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 12 }}>
-                        Belum ada kunci akses aktif.
-                      </div>
-                      <button
-                        className="submit-comment-btn"
-                        onClick={async () => {
-                          setIsGeneratingKeys(true);
-                          const updated = await generateAccessKeys(10);
-                          setAccessKeys(updated);
-                          setIsGeneratingKeys(false);
-                        }}
-                      >
-                        Buat 10 Kunci Akses Baru Sekarang
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-                      {accessKeys.filter(k => !k.isUsed).map((k) => (
-                        <div
-                          key={k.key}
-                          style={{
-                            background: '#ffffff',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: 4,
-                            padding: '14px 16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            boxShadow: 'var(--shadow-sm)'
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontFamily: 'monospace', fontSize: 22, fontWeight: 700, letterSpacing: 2, color: 'var(--text-primary)' }}>
-                              {k.key}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                              Dibuat: {k.createdAt || 'Hari ini'}
-                            </div>
-                          </div>
+                  {/* Mode Navigation Tabs */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: 4,
+                        border: '1px solid var(--border-medium)',
+                        background: tokenGenTab === 'ALL_CLASSES' ? 'var(--text-primary)' : 'var(--bg-canvas)',
+                        color: tokenGenTab === 'ALL_CLASSES' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setTokenGenTab('ALL_CLASSES')}
+                    >
+                      ⚡ 1-Klik Buat Token Semua Kelas (~70 Kelompok)
+                    </button>
 
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              type="button"
-                              className="admin-badge-btn"
-                              style={{ padding: '6px 10px', fontSize: 12 }}
-                              title="Salin Kunci"
-                              onClick={() => {
-                                navigator.clipboard.writeText(k.key);
-                                setCopiedKey(k.key);
-                                setTimeout(() => setCopiedKey(null), 2000);
-                              }}
-                            >
-                              <Copy size={13} />
-                              <span>{copiedKey === k.key ? 'Tersalin' : 'Salin'}</span>
-                            </button>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: 4,
+                        border: '1px solid var(--border-medium)',
+                        background: tokenGenTab === 'SINGLE_GROUP' ? 'var(--text-primary)' : 'var(--bg-canvas)',
+                        color: tokenGenTab === 'SINGLE_GROUP' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setTokenGenTab('SINGLE_GROUP')}
+                    >
+                      + Tambah Satu Kelompok
+                    </button>
 
-                            <button
-                              type="button"
-                              className="admin-badge-btn"
-                              style={{ padding: '6px 8px', color: '#dc3545', borderColor: '#f5c6cb' }}
-                              title="Hapus Kunci"
-                              onClick={async () => {
-                                const updated = await deleteAccessKey(k.key);
-                                setAccessKeys(updated);
-                              }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: 4,
+                        border: '1px solid var(--border-medium)',
+                        background: tokenGenTab === 'BULK_TEXT' ? 'var(--text-primary)' : 'var(--bg-canvas)',
+                        color: tokenGenTab === 'BULK_TEXT' ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setTokenGenTab('BULK_TEXT')}
+                    >
+                      📋 Daftarkan Banyak Kelompok (Paste Baris)
+                    </button>
+                  </div>
+
+                  {/* TAB A: 1-Click All Classes */}
+                  {tokenGenTab === 'ALL_CLASSES' && (
+                    <div style={{ background: 'var(--bg-subtle)', padding: 20, borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                        Secara otomatis membuat kelompok bernomor (contoh: <code>Kelompok 1</code> s.d. <code>Kelompok {groupsPerClassCount}</code>) untuk <strong>seluruh {classes.length} kelas yang terdaftar</strong> sekaligus.
+                      </p>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                            Jumlah Kelompok per Kelas:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="30"
+                            className="form-input-text"
+                            style={{ width: 120, height: 38, padding: '0 12px' }}
+                            value={groupsPerClassCount}
+                            onChange={(e) => setGroupsPerClassCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                          />
                         </div>
-                      ))}
+
+                        <div style={{ alignSelf: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className="submit-comment-btn"
+                            disabled={isGeneratingKeys || classes.length === 0}
+                            style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                            onClick={async () => {
+                              const count = parseInt(groupsPerClassCount, 10) || 10;
+                              if (confirm(`Buat ${count} token kelompok untuk masing-masing dari ${classes.length} kelas (total ${count * classes.length} token baru)?`)) {
+                                setIsGeneratingKeys(true);
+                                try {
+                                  const updated = await generateTokensForAllClasses(classes, count);
+                                  setAccessKeys(updated);
+                                  alert(`Berhasil membuat ${count * classes.length} token untuk seluruh kelas!`);
+                                } catch (err) {
+                                  alert('Gagal membuat token: ' + err.message);
+                                } finally {
+                                  setIsGeneratingKeys(false);
+                                }
+                              }
+                            }}
+                          >
+                            <RefreshCw size={14} className={isGeneratingKeys ? 'spin' : ''} />
+                            <span>{isGeneratingKeys ? 'Membuat Token...' : `Buat ${groupsPerClassCount * classes.length} Token untuk Seluruh Kelas`}</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* TAB B: Single Group Registration */}
+                  {tokenGenTab === 'SINGLE_GROUP' && (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const cId = singleClassId || classes[0]?.id;
+                        const gName = singleGroupName.trim();
+                        if (!gName) {
+                          alert('Mohon isi nama kelompok (contoh: Kelompok 1)');
+                          return;
+                        }
+                        setIsGeneratingKeys(true);
+                        try {
+                          const updated = await createGroupToken({ classId: cId, groupName: gName });
+                          setAccessKeys(updated);
+                          setSingleGroupName('');
+                        } catch (err) {
+                          alert('Gagal membuat token: ' + err.message);
+                        } finally {
+                          setIsGeneratingKeys(false);
+                        }
+                      }}
+                      style={{ background: 'var(--bg-subtle)', padding: 20, borderRadius: 4, border: '1px solid var(--border-subtle)' }}
+                    >
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 16 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                            Pilih Kelas:
+                          </label>
+                          <select
+                            className="form-input-text"
+                            style={{ width: '100%', height: 38, padding: '0 12px' }}
+                            value={singleClassId || classes[0]?.id || ''}
+                            onChange={(e) => setSingleClassId(e.target.value)}
+                          >
+                            {classes.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                            Nama Kelompok:
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: Kelompok 1 atau Tim Wayan"
+                            className="form-input-text"
+                            style={{ width: '100%', height: 38, padding: '0 12px' }}
+                            value={singleGroupName}
+                            onChange={(e) => setSingleGroupName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isGeneratingKeys}
+                        className="submit-comment-btn"
+                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <Plus size={15} />
+                        <span>{isGeneratingKeys ? 'Membuat Token...' : 'Daftarkan Kelompok & Buat Token'}</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {/* TAB C: Bulk Paste Groups */}
+                  {tokenGenTab === 'BULK_TEXT' && (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!bulkGroupsText.trim()) return;
+                        const lines = bulkGroupsText.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                        if (lines.length === 0) return;
+
+                        const cId = bulkClassId || classes[0]?.id;
+                        const list = lines.map(line => ({ classId: cId, groupName: line }));
+
+                        setIsGeneratingKeys(true);
+                        try {
+                          const updated = await bulkCreateGroupTokens(list);
+                          setAccessKeys(updated);
+                          setBulkGroupsText('');
+                          alert(`Berhasil membuat ${lines.length} token untuk kelas ${classes.find(c => c.id === cId)?.name || cId}!`);
+                        } catch (err) {
+                          alert('Gagal membuat token: ' + err.message);
+                        } finally {
+                          setIsGeneratingKeys(false);
+                        }
+                      }}
+                      style={{ background: 'var(--bg-subtle)', padding: 20, borderRadius: 4, border: '1px solid var(--border-subtle)' }}
+                    >
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                          Pilih Kelas:
+                        </label>
+                        <select
+                          className="form-input-text"
+                          style={{ width: 240, height: 38, padding: '0 12px' }}
+                          value={bulkClassId || classes[0]?.id || ''}
+                          onChange={(e) => setBulkClassId(e.target.value)}
+                        >
+                          {classes.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                          Daftar Nama Kelompok (Satu per baris):
+                        </label>
+                        <textarea
+                          rows={5}
+                          className="form-input-text"
+                          style={{ width: '100%', padding: '10px 12px', fontSize: 13 }}
+                          placeholder={`Kelompok 1\nKelompok 2\nKelompok 3\nKelompok 4`}
+                          value={bulkGroupsText}
+                          onChange={(e) => setBulkGroupsText(e.target.value)}
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isGeneratingKeys || !bulkGroupsText.trim()}
+                        className="submit-comment-btn"
+                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <Plus size={15} />
+                        <span>{isGeneratingKeys ? 'Membuat Token...' : 'Generate Token dari Daftar Kelompok'}</span>
+                      </button>
+                    </form>
                   )}
                 </div>
 
-                {/* Used Keys History */}
-                {accessKeys.some(k => k.isUsed) && (
-                  <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 20 }}>
-                    <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
-                      Riwayat Kunci yang Sudah Digunakan (Hangus)
+                {/* Token Table & Search Filter */}
+                <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 18 }}>
+                    <h4 style={{ fontSize: 16, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>Daftar Kunci Akses Kelompok ({accessKeys.length})</span>
                     </h4>
+
+                    {/* Filters */}
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <select
+                        className="form-input-text"
+                        style={{ height: 36, padding: '0 10px', fontSize: 13 }}
+                        value={filterKeyClass}
+                        onChange={(e) => setFilterKeyClass(e.target.value)}
+                      >
+                        <option value="ALL">Semua Kelas</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+
+                      <input
+                        type="text"
+                        placeholder="Cari token atau kelompok..."
+                        className="form-input-text"
+                        style={{ height: 36, padding: '0 12px', fontSize: 13, width: 200 }}
+                        value={keySearchQuery}
+                        onChange={(e) => setKeySearchQuery(e.target.value)}
+                      >
+                      </input>
+                    </div>
+                  </div>
+
+                  {/* Filtered Keys Table */}
+                  {accessKeys.length === 0 ? (
+                    <div style={{ background: 'var(--bg-subtle)', border: '1px dashed var(--border-medium)', borderRadius: 4, padding: 36, textAlign: 'center' }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 14px 0' }}>
+                        Belum ada token kelompok yang dibuat.
+                      </p>
+                      <button
+                        type="button"
+                        className="submit-comment-btn"
+                        onClick={() => setTokenGenTab('ALL_CLASSES')}
+                      >
+                        Gunakan 1-Klik Buat Token Semua Kelas
+                      </button>
+                    </div>
+                  ) : (
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border-medium)', textAlign: 'left', background: 'var(--bg-subtle)' }}>
-                            <th style={{ padding: '8px 12px' }}>Kode Kunci</th>
-                            <th style={{ padding: '8px 12px' }}>Status</th>
-                            <th style={{ padding: '8px 12px' }}>Digunakan Pada</th>
-                            <th style={{ padding: '8px 12px' }}>Keterangan Penggunaan</th>
-                            <th style={{ padding: '8px 12px', textAlign: 'right' }}>Aksi</th>
+                            <th style={{ padding: '10px 14px' }}>Kelas</th>
+                            <th style={{ padding: '10px 14px' }}>Nama Kelompok</th>
+                            <th style={{ padding: '10px 14px' }}>6-Digit Token</th>
+                            <th style={{ padding: '10px 14px' }}>Status Penggunaan</th>
+                            <th style={{ padding: '10px 14px' }}>Waktu Dibuat</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'right' }}>Aksi</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {accessKeys.filter(k => k.isUsed).map((k) => (
-                            <tr key={k.key} style={{ borderBottom: '1px solid var(--border-subtle)', opacity: 0.8 }}>
-                              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 600, textDecoration: 'line-through' }}>
-                                {k.key}
-                              </td>
-                              <td style={{ padding: '8px 12px' }}>
-                                <span style={{ background: '#eee', padding: '2px 8px', borderRadius: 2, fontSize: 11, fontWeight: 500 }}>
-                                  Sudah Terpakai
-                                </span>
-                              </td>
-                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontSize: 12 }}>
-                                {k.usedAt || '-'}
-                              </td>
-                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
-                                {k.usedFor || '-'}
-                              </td>
-                              <td style={{ padding: '8px 12px', textAlign: 'right' }}>
-                                <button
-                                  type="button"
-                                  className="admin-badge-btn"
-                                  style={{ padding: '4px 8px', color: '#dc3545' }}
-                                  onClick={async () => {
-                                    const updated = await deleteAccessKey(k.key);
-                                    setAccessKeys(updated);
-                                  }}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {accessKeys
+                            .filter(k => {
+                              const matchesClass = filterKeyClass === 'ALL' || k.classId === filterKeyClass;
+                              const matchesSearch = !keySearchQuery ||
+                                k.key.includes(keySearchQuery) ||
+                                (k.groupName && k.groupName.toLowerCase().includes(keySearchQuery.toLowerCase()));
+                              return matchesClass && matchesSearch;
+                            })
+                            .map((k) => {
+                              const cls = classes.find(c => c.id === k.classId);
+                              const className = cls ? cls.name : (k.classId || 'Umum');
+
+                              return (
+                                <tr key={k.key} style={{ borderBottom: '1px solid var(--border-subtle)', background: k.isUsed ? 'rgba(0,0,0,0.015)' : '#ffffff' }}>
+                                  <td style={{ padding: '12px 14px', fontWeight: 600 }}>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      padding: '2px 8px',
+                                      borderRadius: 4,
+                                      background: 'var(--bg-subtle)',
+                                      border: '1px solid var(--border-subtle)',
+                                      fontSize: 12
+                                    }}>
+                                      {className}
+                                    </span>
+                                  </td>
+
+                                  <td style={{ padding: '12px 14px', fontWeight: 500 }}>
+                                    {k.groupName || '-'}
+                                  </td>
+
+                                  <td style={{ padding: '12px 14px' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: 15,
+                                        fontWeight: 700,
+                                        letterSpacing: 1.5,
+                                        color: k.isUsed ? 'var(--text-muted)' : 'var(--text-primary)',
+                                        textDecoration: k.isUsed ? 'line-through' : 'none'
+                                      }}>
+                                        {k.key}
+                                      </span>
+
+                                      {!k.isUsed && (
+                                        <button
+                                          type="button"
+                                          className="admin-badge-btn"
+                                          style={{ padding: '3px 8px', fontSize: 11 }}
+                                          title="Salin Kunci"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(k.key);
+                                            setCopiedKey(k.key);
+                                            setTimeout(() => setCopiedKey(null), 2000);
+                                          }}
+                                        >
+                                          <Copy size={11} />
+                                          <span>{copiedKey === k.key ? 'Tersalin' : 'Salin'}</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  <td style={{ padding: '12px 14px' }}>
+                                    {k.isUsed ? (
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                        padding: '3px 9px',
+                                        borderRadius: 12,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        background: '#f1f3f4',
+                                        color: '#5f6368'
+                                      }}>
+                                        <Check size={12} />
+                                        <span>Sudah Digunakan ({k.usedAt || 'Selesai'})</span>
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                        padding: '3px 9px',
+                                        borderRadius: 12,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        background: '#e6f4ea',
+                                        color: '#137333'
+                                      }}>
+                                        <ShieldCheck size={12} />
+                                        <span>Aktif &middot; 1 Kesempatan</span>
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  <td style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                                    {k.createdAt || '-'}
+                                  </td>
+
+                                  <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                                    <button
+                                      type="button"
+                                      className="admin-badge-btn"
+                                      style={{ padding: '5px 8px', color: '#dc3545', borderColor: '#f5c6cb' }}
+                                      title="Hapus Kunci Ini"
+                                      onClick={async () => {
+                                        if (confirm(`Hapus token ${k.key} (${k.groupName})?`)) {
+                                          const updated = await deleteAccessKey(k.key);
+                                          setAccessKeys(updated);
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 

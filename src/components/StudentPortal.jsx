@@ -1,109 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { validateAndConsumeAccessKey, convertGoogleDriveUrl } from '../lib/supabase';
+import React, { useState, useRef } from 'react';
+import {
+  verifyGroupToken,
+  consumeGroupToken,
+  convertGoogleDriveUrl,
+  compressImageToWebP
+} from '../lib/supabase';
 
 export default function StudentPortal({
   classes,
   projects,
-  initialClass,
   onSaveProject,
   onNavigateHome,
   onSelectProject
 }) {
-  const [selectedClassId, setSelectedClassId] = useState(initialClass?.id || classes[0]?.id || '');
-  const [mode, setMode] = useState('EDIT'); // 'EDIT' or 'NEW'
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-  
   // Key verification state
   const [accessKeyInput, setAccessKeyInput] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [keyError, setKeyError] = useState('');
-  const [verifiedKey, setVerifiedKey] = useState('');
+  const [verifiedToken, setVerifiedToken] = useState(null);
+  const [matchedClass, setMatchedClass] = useState(null);
   const [isKeyVerified, setIsKeyVerified] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
     title: '',
     creators: '',
-    pieceNumber: '01',
     posterUrl: '',
     gameUrl: '',
-    description: '',
-    format: 'PNG'
+    description: ''
   });
+
+  // Poster Upload states
+  const [posterInputType, setPosterInputType] = useState('UPLOAD'); // 'UPLOAD' or 'DRIVE'
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressStats, setCompressStats] = useState(null);
+  const fileInputRef = useRef(null);
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [savedProjectId, setSavedProjectId] = useState(null);
 
-  // Filter projects by class
-  const classProjects = projects.filter(p => p.classId === selectedClassId);
-
-  // Sync initial class
-  useEffect(() => {
-    if (initialClass && initialClass.id !== selectedClassId) {
-      setSelectedClassId(initialClass.id);
-    }
-  }, [initialClass]);
-
-  // When class or mode changes, update selected project or form
-  useEffect(() => {
-    if (mode === 'EDIT') {
-      if (classProjects.length > 0) {
-        const targetProj = classProjects.find(p => p.id === selectedProjectId) || classProjects[0];
-        setSelectedProjectId(targetProj.id);
-        setFormData({
-          title: targetProj.title || '',
-          creators: targetProj.creators || '',
-          pieceNumber: targetProj.pieceNumber || '01',
-          posterUrl: targetProj.posterUrl || '',
-          gameUrl: targetProj.gameUrl || '',
-          description: targetProj.description || '',
-          format: targetProj.format || 'PNG'
-        });
-      } else {
-        setSelectedProjectId('');
-        setFormData({
-          title: '',
-          creators: '',
-          pieceNumber: '01',
-          posterUrl: '',
-          gameUrl: '',
-          description: '',
-          format: 'PNG'
-        });
-      }
-    } else {
-      // NEW mode
-      const nextNum = String(classProjects.length + 1).padStart(2, '0');
-      setFormData({
-        title: '',
-        creators: '',
-        pieceNumber: nextNum,
-        posterUrl: '',
-        gameUrl: '',
-        description: '',
-        format: 'PNG'
-      });
-    }
-  }, [selectedClassId, mode]);
-
-  // When project dropdown changes in EDIT mode
-  const handleProjectSelect = (projId) => {
-    setSelectedProjectId(projId);
-    const target = classProjects.find(p => p.id === projId);
-    if (target) {
-      setFormData({
-        title: target.title || '',
-        creators: target.creators || '',
-        pieceNumber: target.pieceNumber || '01',
-        posterUrl: target.posterUrl || '',
-        gameUrl: target.gameUrl || '',
-        description: target.description || '',
-        format: target.format || 'PNG'
-      });
-    }
-  };
-
-  // Verify Single-use Access Key
+  // -----------------------------------------------------------
+  // Verify Group Token & Forward to Specific Group Form
+  // -----------------------------------------------------------
   const handleVerifyKey = async (e) => {
     e.preventDefault();
     setKeyError('');
@@ -116,78 +55,158 @@ export default function StudentPortal({
 
     setIsVerifying(true);
     try {
-      const selectedClass = classes.find(c => c.id === selectedClassId);
-      const usedForDescription = mode === 'EDIT'
-        ? `Edit karya ${formData.title || selectedProjectId} (${selectedClass?.name || selectedClassId})`
-        : `Tambah karya baru (${selectedClass?.name || selectedClassId})`;
+      const result = await verifyGroupToken(clean);
+      if (result.valid && result.token) {
+        const token = result.token;
+        setVerifiedToken(token);
 
-      const result = await validateAndConsumeAccessKey(clean, usedForDescription);
-      if (result.valid) {
+        // Find associated class
+        const targetClass = classes.find(c => c.id === token.classId) || {
+          id: token.classId || 'umum',
+          name: token.classId ? token.classId.toUpperCase() : 'Kelas Peserta'
+        };
+        setMatchedClass(targetClass);
+
+        // Check if there is an existing project for this group or token
+        let existingProj = null;
+        if (token.projectId) {
+          existingProj = projects.find(p => p.id === token.projectId);
+        } else if (token.groupName && targetClass.id) {
+          existingProj = projects.find(p => 
+            p.classId === targetClass.id && 
+            p.creators && 
+            p.creators.toLowerCase().includes(token.groupName.toLowerCase())
+          );
+        }
+
+        if (existingProj) {
+          setFormData({
+            title: existingProj.title || '',
+            creators: existingProj.creators || token.groupName || '',
+            posterUrl: existingProj.posterUrl || '',
+            gameUrl: existingProj.gameUrl || '',
+            description: existingProj.description || ''
+          });
+        } else {
+          // Fresh form with group pre-filled
+          setFormData({
+            title: '',
+            creators: token.groupName || 'Kelompok Siswa',
+            posterUrl: '',
+            gameUrl: '',
+            description: ''
+          });
+        }
+
         setIsKeyVerified(true);
-        setVerifiedKey(clean);
         setKeyError('');
       } else {
         setKeyError(result.message || 'Kunci akses tidak valid atau sudah pernah digunakan.');
       }
     } catch (err) {
-      setKeyError('Terjadi kesalahan koneksi saat verifikasi kunci.');
+      setKeyError('Terjadi gangguan jaringan saat verifikasi kunci akses: ' + err.message);
     } finally {
       setIsVerifying(false);
     }
   };
 
-  // Handle Form Change with Google Drive Auto-converter
-  const handlePosterUrlChange = (e) => {
+  // -----------------------------------------------------------
+  // Poster Image Processing (WebP Compressor)
+  // -----------------------------------------------------------
+  const processImageFile = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Berkas harus berupa gambar (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+
+    setIsCompressing(true);
+    setCompressStats(null);
+    try {
+      const result = await compressImageToWebP(file, 1600, 0.82);
+      setFormData(prev => ({ ...prev, posterUrl: result.dataUrl }));
+      setCompressStats({
+        originalKb: result.originalSizeKb,
+        compressedKb: result.compressedSizeKb,
+        format: result.format
+      });
+    } catch (err) {
+      alert('Gagal memproses gambar: ' + err.message);
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+  };
+
+  const handleDropImage = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+  };
+
+  const handleDriveUrlChange = (e) => {
     const rawVal = e.target.value;
     const converted = convertGoogleDriveUrl(rawVal);
     setFormData(prev => ({ ...prev, posterUrl: converted }));
   };
 
-  // Submit Student Changes
+  // -----------------------------------------------------------
+  // Submit Project & Consume Single-Use Group Token
+  // -----------------------------------------------------------
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      alert('Judul karya harus diisi.');
+      alert('Mohon isi judul karya / game AI.');
       return;
     }
     if (!formData.creators.trim()) {
-      alert('Nama pembuat / kelompok harus diisi.');
+      alert('Mohon isi nama kelompok atau anggota kelompok pembuat.');
+      return;
+    }
+    if (!formData.posterUrl.trim()) {
+      alert('Mohon unggah gambar poster karya atau cantumkan link Google Drive poster.');
       return;
     }
 
     setIsSaving(true);
     try {
-      let projectId = selectedProjectId;
-      let existingLikes = 0;
-      let existingComments = [];
+      const projectId = verifiedToken.projectId || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      const classId = matchedClass?.id || verifiedToken.classId || classes[0]?.id || 'umum';
 
-      if (mode === 'EDIT') {
-        const existing = classProjects.find(p => p.id === selectedProjectId);
-        if (existing) {
-          existingLikes = existing.likesCount || 0;
-          existingComments = existing.comments || [];
-        }
-      } else {
-        projectId = `proj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      }
+      // Keep existing likes/comments if updating
+      const existing = projects.find(p => p.id === projectId);
+      const likesCount = existing ? existing.likesCount : 0;
+      const comments = existing ? existing.comments : [];
 
       const projectData = {
         id: projectId,
-        classId: selectedClassId,
-        pieceNumber: formData.pieceNumber || '01',
+        classId,
+        // pieceNumber is automatically handled by saveProject if left empty
+        pieceNumber: existing?.pieceNumber || undefined,
         title: formData.title.trim(),
         creators: formData.creators.trim(),
-        format: formData.format || 'PNG',
-        posterUrl: formData.posterUrl.trim() || '/artworks/poster1.jpg',
+        format: compressStats?.format || 'WEBP',
+        posterUrl: formData.posterUrl.trim(),
         gameUrl: formData.gameUrl.trim(),
         description: formData.description.trim(),
-        // Security constraint: students cannot edit likes or comments
-        likesCount: existingLikes,
-        comments: existingComments,
-        displayOrder: mode === 'NEW' ? classProjects.length + 1 : undefined
+        likesCount,
+        comments
       };
 
+      // 1. Save project to database
       await onSaveProject(projectData);
+
+      // 2. Consume group token permanently so each group has only 1 chance
+      await consumeGroupToken(verifiedToken.key, projectId);
+
       setSavedProjectId(projectId);
       setSaveSuccess(true);
     } catch (err) {
@@ -199,7 +218,7 @@ export default function StudentPortal({
 
   return (
     <main className="container student-portal-section">
-      {/* Back Button */}
+      {/* Back to Gallery Button */}
       <button
         type="button"
         className="student-back-btn"
@@ -209,15 +228,15 @@ export default function StudentPortal({
         <span>Kembali ke Galeri Pameran</span>
       </button>
 
-      {/* Editorial Hero Header matching Figma style */}
+      {/* Editorial Hero Header matching Figma aesthetic */}
       <div className="student-portal-hero">
-        <div className="category-tag">PAMERAN / PORTAL PEMBARUAN KARYA SISWA</div>
+        <div className="category-tag">PAMERAN / PORTAL PENGUNGGAHAN KARYA SISWA</div>
         <section className="hero-columns">
           <h1 className="main-headline">
-            Perbarui karya pameran.
+            Unggah karya kelompok.
           </h1>
           <p className="hero-description">
-            Layanan mandiri bagi kelompok siswa untuk memperbarui judul, poster karya, dan tautan game AI selama pameran berlangsung.
+            Layanan mandiri bagi kelompok siswa SMAS Kristen Harapan untuk mengunggah poster karya dan tautan game AI menggunakan kunci akses kelompok.
           </p>
         </section>
       </div>
@@ -227,11 +246,13 @@ export default function StudentPortal({
       {/* Main Content Area */}
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
         {saveSuccess ? (
-          /* Success Screen */
+          /* ======================================================== */
+          /* SUCCESS SCREEN                                           */
+          /* ======================================================== */
           <div className="student-panel-card" style={{ padding: '56px 40px', textAlign: 'center' }}>
             <div style={{
-              width: 64,
-              height: 64,
+              width: 68,
+              height: 68,
               borderRadius: '50%',
               background: '#e6f4ea',
               color: '#137333',
@@ -240,15 +261,30 @@ export default function StudentPortal({
               justifyContent: 'center',
               margin: '0 auto 24px auto'
             }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 36 }}>check_circle</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 38 }}>check_circle</span>
             </div>
 
-            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 400, color: 'var(--text-primary)', marginBottom: 12 }}>
-              Karya Berhasil Disimpan
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 30, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 12 }}>
+              Karya Berhasil Diterbitkan
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 15, maxWidth: 520, margin: '0 auto 32px auto', lineHeight: 1.6 }}>
-              Perubahan pada karya <strong>"{formData.title}"</strong> telah tersimpan ke dalam database pameran dan siap dinikmati para pengunjung galeri.
+            <p style={{ color: 'var(--text-secondary)', fontSize: 15, maxWidth: 540, margin: '0 auto 16px auto', lineHeight: 1.6 }}>
+              Karya <strong>"{formData.title}"</strong> oleh <strong>{formData.creators}</strong> di kelas <strong>{matchedClass?.name}</strong> telah tersimpan ke dalam database pameran dan siap dinikmati pengunjung.
             </p>
+
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              background: '#f1f3f4',
+              borderRadius: 20,
+              fontSize: 12,
+              color: '#3c4043',
+              marginBottom: 36
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#137333' }}>lock</span>
+              <span>Kunci kelompok <strong>{verifiedToken?.key}</strong> telah ditandai selesai (1 kali penggunaan)</span>
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
               <button
@@ -256,426 +292,460 @@ export default function StudentPortal({
                 className="student-submit-btn"
                 onClick={() => {
                   if (savedProjectId && onSelectProject) {
-                    const saved = projects.find(p => p.id === savedProjectId) || { id: savedProjectId, classId: selectedClassId };
+                    const saved = projects.find(p => p.id === savedProjectId) || { id: savedProjectId, classId: matchedClass?.id };
                     onSelectProject(saved);
                   } else {
                     onNavigateHome();
                   }
                 }}
               >
-                <span>Lihat Karya di Galeri</span>
+                <span>Lihat Karya di Galeri Kelas</span>
                 <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span>
               </button>
 
               <button
                 type="button"
                 className="action-btn"
-                style={{ padding: '12px 20px', fontSize: 14, fontWeight: 500 }}
-                onClick={() => {
-                  setSaveSuccess(false);
-                  setIsKeyVerified(false);
-                  setVerifiedKey('');
-                  setAccessKeyInput('');
-                }}
+                style={{ padding: '12px 24px', fontSize: 14, fontWeight: 500 }}
+                onClick={onNavigateHome}
               >
-                <span>Perbarui Karya Lain</span>
+                <span>Selesai &amp; Keluar</span>
               </button>
             </div>
           </div>
-        ) : (
+        ) : !isKeyVerified ? (
+          /* ======================================================== */
+          /* STEP 1: TOKEN INPUT & FORWARDING GATE                    */
+          /* ======================================================== */
           <div className="student-panel-card">
-            
-            {/* Step 1: Mode & Class Selection */}
             <div className="student-step-header">
               <div className="student-step-badge">
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>tune</span>
-                <span>Langkah 1 &mdash; Tentukan Kelas &amp; Mode</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>key</span>
+                <span>Langkah 1 &mdash; Masukkan Kunci Akses Kelompok</span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {mode === 'EDIT' ? 'Memperbarui karya yang ada' : 'Mendaftarkan karya baru'}
+                Kode 6-digit sekali pakai per kelompok
               </div>
             </div>
 
-            <div style={{ padding: '28px 32px 20px 32px', borderBottom: '1px solid var(--border-subtle)' }}>
-              {/* Mode Toggle Buttons */}
-              <div className="student-mode-grid">
-                <div
-                  className={`student-mode-btn ${mode === 'EDIT' ? 'active' : ''}`}
-                  onClick={() => setMode('EDIT')}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="student-mode-btn-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>edit_note</span>
-                    <span>Edit Karya yang Sudah Ada</span>
-                  </div>
-                  <div className="student-mode-btn-desc">
-                    Perbarui judul, poster, atau tautan game pada karya yang sudah terdaftar.
+            <div className="student-pin-container">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-medium)',
+                color: 'var(--accent-terracotta)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 18px auto'
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 28 }}>pin</span>
+              </div>
+
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 8 }}>
+                Kunci Akses Kelompok
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 14, maxWidth: 480, margin: '0 auto 28px auto', lineHeight: 1.55 }}>
+                Masukkan <strong>6-digit token akses</strong> yang diberikan oleh guru atau panitia. Sistem akan langsung mengarahkan Anda ke formulir kelas dan kelompok Anda.
+              </p>
+
+              <form onSubmit={handleVerifyKey} style={{ maxWidth: 360, margin: '0 auto' }}>
+                <div style={{ marginBottom: 18 }}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    autoFocus
+                    placeholder="••••••"
+                    value={accessKeyInput}
+                    onChange={(e) => setAccessKeyInput(e.target.value.replace(/\D/g, ''))}
+                    className="student-pin-field"
+                  />
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                    Ketik 6 digit angka tanpa spasi
                   </div>
                 </div>
 
-                <div
-                  className={`student-mode-btn ${mode === 'NEW' ? 'active' : ''}`}
-                  onClick={() => setMode('NEW')}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="student-mode-btn-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add_circle</span>
-                    <span>Tambah Karya Baru</span>
+                {keyError && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    color: '#b00020',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    background: '#fde8e8',
+                    border: '1px solid #f8b4b4',
+                    padding: '12px 14px',
+                    borderRadius: 4,
+                    marginBottom: 20,
+                    textAlign: 'left',
+                    lineHeight: 1.45
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>error</span>
+                    <span>{keyError}</span>
                   </div>
-                  <div className="student-mode-btn-desc">
-                    Unggah karya pertama atau kelompok baru ke dalam galeri kelas.
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isVerifying || accessKeyInput.length !== 6}
+                  className="student-submit-btn"
+                  style={{ width: '100%', height: 48, fontSize: 15 }}
+                >
+                  <span>{isVerifying ? 'Memverifikasi Token...' : 'Masuk & Buka Formulir Kelompok'}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_forward</span>
+                </button>
+              </form>
+
+              {/* Security Hint */}
+              <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>info</span>
+                <span>Setiap kelompok memiliki 1 token unik dan hanya 1 kali kesempatan mengunggah karya.</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ======================================================== */
+          /* STEP 2: FORWARDED GROUP FORM                             */
+          /* ======================================================== */
+          <div className="student-panel-card">
+            {/* Header with Group and Class Indicator */}
+            <div className="student-step-header" style={{ background: '#f8fafc' }}>
+              <div className="student-step-badge" style={{ color: '#137333' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>verified</span>
+                <span>Formulir Karya Kelompok</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#137333', fontWeight: 600 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>key</span>
+                <span>Token: {verifiedToken?.key}</span>
+              </div>
+            </div>
+
+            {/* Destination Group Forwarded Card */}
+            <div style={{
+              margin: '24px 32px 0 32px',
+              padding: '16px 20px',
+              background: '#e8f0fe',
+              border: '1px solid #c2e7ff',
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 4,
+                  background: '#1a73e8',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 22 }}>groups</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.8, color: '#174ea6', fontWeight: 700 }}>
+                    Kelompok Terhubung Otomatis
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#041e49', marginTop: 1 }}>
+                    Kelas: {matchedClass?.name || verifiedToken?.classId} &middot; {verifiedToken?.groupName || 'Kelompok Siswa'}
                   </div>
                 </div>
               </div>
 
-              {/* Class & Project Selection Fields */}
-              <div style={{ display: 'grid', gridTemplateColumns: mode === 'EDIT' ? '1fr 1.5fr' : '1fr', gap: 20, marginBottom: 12 }}>
-                <div>
-                  <label className="student-field-label">
-                    Pilih Kelas <span className="required">*</span>
+              <div style={{ fontSize: 12, color: '#174ea6', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>tag</span>
+                <span>Nomor urut otomatis diatur sistem</span>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <form onSubmit={handleSubmitForm} className="student-form-section" style={{ padding: '28px 32px 32px 32px' }}>
+              
+              {/* Field 1: Title */}
+              <div className="student-field-group">
+                <label className="student-field-label">
+                  Judul Karya / Judul Game AI <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="form-input-text"
+                  style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 15 }}
+                  placeholder="Contoh: Petualangan Desa Adat Penglipuran AI"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                />
+                <div className="student-field-hint">Nama atau judul resmi game AI buatan kelompok Anda.</div>
+              </div>
+
+              {/* Field 2: Group & Creator Members */}
+              <div className="student-field-group">
+                <label className="student-field-label">
+                  Nama Kelompok &amp; Anggota Pembuat <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="form-input-text"
+                  style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 15 }}
+                  placeholder="Contoh: Kelompok 1 (Kadek, Putu, Wayan, Made)"
+                  value={formData.creators}
+                  onChange={(e) => setFormData({ ...formData, creators: e.target.value })}
+                />
+                <div className="student-field-hint">Tuliskan nama kelompok beserta nama-nama anggota tim pembuat karya.</div>
+              </div>
+
+              {/* Field 3: Poster Image with Dual Input (Direct Upload with WebP Compression or Google Drive) */}
+              <div className="student-field-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                  <label className="student-field-label" style={{ margin: 0 }}>
+                    Poster Karya <span className="required">*</span>
                   </label>
-                  <select
-                    className="form-input-text"
-                    style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14, fontWeight: 500 }}
-                    value={selectedClassId}
-                    onChange={(e) => setSelectedClassId(e.target.value)}
-                  >
-                    {classes.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+
+                  {/* Mode Selector Tabs */}
+                  <div style={{ display: 'inline-flex', border: '1px solid var(--border-medium)', borderRadius: 4, overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: posterInputType === 'UPLOAD' ? 'var(--text-primary)' : 'var(--bg-canvas)',
+                        color: posterInputType === 'UPLOAD' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      onClick={() => setPosterInputType('UPLOAD')}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 15 }}>upload_file</span>
+                      <span>Unggah Gambar Langsung</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: posterInputType === 'DRIVE' ? 'var(--text-primary)' : 'var(--bg-canvas)',
+                        color: posterInputType === 'DRIVE' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      onClick={() => setPosterInputType('DRIVE')}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 15 }}>link</span>
+                      <span>Tautan Google Drive</span>
+                    </button>
+                  </div>
                 </div>
 
-                {mode === 'EDIT' && (
+                {posterInputType === 'UPLOAD' ? (
+                  /* Option A: Direct File Upload with Auto-WebP Compression */
                   <div>
-                    <label className="student-field-label">
-                      Pilih Karya Siswa <span className="required">*</span>
-                    </label>
-                    {classProjects.length > 0 ? (
-                      <select
-                        className="form-input-text"
-                        style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14 }}
-                        value={selectedProjectId}
-                        onChange={(e) => handleProjectSelect(e.target.value)}
-                      >
-                        {classProjects.map(p => (
-                          <option key={p.id} value={p.id}>
-                            Karya {p.pieceNumber} &mdash; {p.title} ({p.creators})
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleFileInputChange}
+                    />
+
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleDropImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        border: '2px dashed var(--border-medium)',
+                        borderRadius: 6,
+                        padding: '28px 20px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        background: isCompressing ? '#f8f9fa' : 'var(--bg-subtle)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {isCompressing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                          <span className="material-symbols-outlined spin" style={{ fontSize: 32, color: 'var(--accent-terracotta)' }}>progress_activity</span>
+                          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>Mengompresi gambar ke WebP ringan...</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 36, color: 'var(--accent-terracotta)' }}>cloud_upload</span>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Klik untuk memilih berkas poster atau seret gambar ke sini
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            Mendukung PNG, JPG, JPEG, WEBP. Gambar akan otomatis dikompresi agar ringan dan cepat dibuka di HP pengunjung.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Compression Feedback Banner */}
+                    {compressStats && (
                       <div style={{
-                        padding: '10px 14px',
-                        background: 'rgba(184, 67, 35, 0.06)',
-                        border: '1px solid rgba(184, 67, 35, 0.25)',
+                        marginTop: 10,
+                        padding: '8px 14px',
+                        background: '#e6f4ea',
+                        border: '1px solid #b7e1cd',
                         borderRadius: 4,
-                        fontSize: 13,
-                        color: 'var(--accent-terracotta)',
+                        fontSize: 12,
+                        color: '#137333',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8
                       }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>info</span>
-                        <span>Belum ada karya di kelas ini. Pilih mode <strong>Tambah Karya Baru</strong>.</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span>
+                        <span>
+                          Ukuran terkompresi: <strong>{compressStats.compressedKb} KB ({compressStats.format})</strong> dari berkas asli {compressStats.originalKb} KB &mdash; optimal untuk pameran live!
+                        </span>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Step 2: Key Verification Gate */}
-            {!isKeyVerified ? (
-              <div>
-                <div className="student-step-header">
-                  <div className="student-step-badge">
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>lock</span>
-                    <span>Langkah 2 &mdash; Verifikasi Kunci Akses Siswa</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    Kode 6-digit sekali pakai
-                  </div>
-                </div>
-
-                <div className="student-pin-container">
-                  <div style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: '50%',
-                    background: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-medium)',
-                    color: 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 16px auto'
-                  }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 26 }}>key</span>
-                  </div>
-
-                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 400, color: 'var(--text-primary)', marginBottom: 8 }}>
-                    Masukkan Kunci Akses Siswa
-                  </h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: 14, maxWidth: 480, margin: '0 auto 28px auto', lineHeight: 1.5 }}>
-                    Minta <strong>6-digit kode akses sekali pakai</strong> kepada guru pendamping atau administrator pameran untuk membuka formulir pengisian karya.
-                  </p>
-
-                  <form onSubmit={handleVerifyKey} style={{ maxWidth: 360, margin: '0 auto' }}>
-                    <div style={{ marginBottom: 16 }}>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={6}
-                        autoFocus
-                        placeholder="••••••"
-                        value={accessKeyInput}
-                        onChange={(e) => setAccessKeyInput(e.target.value.replace(/\D/g, ''))}
-                        className="student-pin-field"
-                      />
-                    </div>
-
-                    {keyError && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        color: '#b00020',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        background: '#fde8e8',
-                        padding: '10px 14px',
-                        borderRadius: 4,
-                        marginBottom: 18,
-                        textAlign: 'left'
-                      }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 18, flexShrink: 0 }}>error</span>
-                        <span>{keyError}</span>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isVerifying || accessKeyInput.length !== 6}
-                      className="student-submit-btn"
-                      style={{ width: '100%', height: 46 }}
-                    >
-                      <span>{isVerifying ? 'Memverifikasi Kunci...' : 'Buka Formulir Karya'}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_forward</span>
-                    </button>
-                  </form>
-                </div>
-              </div>
-            ) : (
-              /* Step 3: Verified Edit Form */
-              <div>
-                <div className="student-step-header">
-                  <div className="student-step-badge" style={{ color: '#137333' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span>
-                    <span>Langkah 3 &mdash; Formulir Informasi Karya</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#137333', fontWeight: 600 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>lock_open</span>
-                    <span>Kunci Terverifikasi: {verifiedKey}</span>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSubmitForm} className="student-form-section">
-                  {/* Verified Confirmation Banner */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '14px 20px',
-                    background: '#e6f4ea',
-                    border: '1px solid #b7e1cd',
-                    borderRadius: 4,
-                    marginBottom: 28
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#137333', fontSize: 13, fontWeight: 500 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 20 }}>verified</span>
-                      <span>Kunci akses telah divalidasi dan digunakan. Formulir siap disimpan.</span>
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#137333' }}>
-                      {mode === 'EDIT' ? 'Pembaruan Karya' : 'Karya Baru'}
-                    </div>
-                  </div>
-
-                  {/* Title & Creators */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-                    <div>
-                      <label className="student-field-label">
-                        Judul Karya / Judul Game AI <span className="required">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        className="form-input-text"
-                        style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14 }}
-                        placeholder="Contoh: Petualangan Desa Adat Penglipuran"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="student-field-label">
-                        Nama Kelompok / Anggota Pembuat <span className="required">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        className="form-input-text"
-                        style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14 }}
-                        placeholder="Contoh: Kelompok 1 (Kadek, Putu, Wayan)"
-                        value={formData.creators}
-                        onChange={(e) => setFormData({ ...formData, creators: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Piece Number & Media Format */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20, marginBottom: 20 }}>
-                    <div>
-                      <label className="student-field-label">
-                        Nomor Urut Karya
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input-text"
-                        style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14 }}
-                        placeholder="01"
-                        value={formData.pieceNumber}
-                        onChange={(e) => setFormData({ ...formData, pieceNumber: e.target.value })}
-                      />
-                      <div className="student-field-hint">Format dua digit: 01, 02, dst.</div>
-                    </div>
-
-                    <div>
-                      <label className="student-field-label">
-                        Format Media
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input-text"
-                        style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14 }}
-                        placeholder="PNG / JPG / WebGL"
-                        value={formData.format}
-                        onChange={(e) => setFormData({ ...formData, format: e.target.value })}
-                      />
-                      <div className="student-field-hint">Jenis format karya grafis atau poster.</div>
-                    </div>
-                  </div>
-
-                  {/* Poster URL with Google Drive Support */}
-                  <div className="student-field-group">
-                    <label className="student-field-label">
-                      Tautan Poster Gambar (Google Drive atau URL Langsung)
-                    </label>
+                ) : (
+                  /* Option B: Google Drive Link Input */
+                  <div>
                     <input
                       type="text"
                       className="form-input-text"
-                      style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14 }}
-                      placeholder="Tempel tautan Google Drive atau URL poster..."
+                      style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14 }}
+                      placeholder="Tempel tautan Google Drive (contoh: drive.google.com/file/d/...)"
                       value={formData.posterUrl}
-                      onChange={handlePosterUrlChange}
+                      onChange={handleDriveUrlChange}
                     />
                     <div className="student-field-hint">
-                      Tautan Google Drive (<code>drive.google.com/file/d/...</code>) akan otomatis dikonversi ke gambar resolusi tinggi langsung. Pastikan izin berkas <em>"Siapa saja yang memiliki link"</em>.
+                      Tautan Google Drive akan otomatis dikonversi ke gambar resolusi tinggi langsung. Pastikan izin berkas <em>"Siapa saja yang memiliki link"</em>.
                     </div>
+                  </div>
+                )}
 
-                    {/* Instant Poster Preview */}
-                    {formData.posterUrl && (
-                      <div className="student-preview-card">
-                        <img
-                          src={formData.posterUrl}
-                          alt="Pratinjau Poster"
-                          className="student-preview-img"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#137333' }}>image</span>
-                            <span>Pratinjau Poster Terdeteksi</span>
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                            Poster ini akan ditampilkan secara penuh di galeri kelas dan mode perbesar bagi pengunjung.
-                          </div>
-                        </div>
+                {/* Instant Poster Live Preview */}
+                {formData.posterUrl && (
+                  <div className="student-preview-card" style={{ marginTop: 16 }}>
+                    <img
+                      src={formData.posterUrl}
+                      alt="Pratinjau Poster"
+                      className="student-preview-img"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#137333' }}>image</span>
+                        <span>Pratinjau Poster Terdeteksi</span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Game Link */}
-                  <div className="student-field-group">
-                    <label className="student-field-label">
-                      Tautan Game Siswa (Opsional)
-                    </label>
-                    <input
-                      type="url"
-                      className="form-input-text"
-                      style={{ width: '100%', height: 42, padding: '0 12px', fontSize: 14 }}
-                      placeholder="https://scratch.mit.edu/... atau https://itch.io/..."
-                      value={formData.gameUrl}
-                      onChange={(e) => setFormData({ ...formData, gameUrl: e.target.value })}
-                    />
-                    <div className="student-field-hint">
-                      Tautan untuk membuka game buatan kelompok siswa ketika pengunjung mengklik tombol <em>"Buka tautan karya ↗"</em>.
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45, marginBottom: 8 }}>
+                        Poster ini akan ditampilkan secara penuh di galeri pameran kelas dan dapat diperbesar oleh pengunjung.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, posterUrl: '' }));
+                          setCompressStats(null);
+                        }}
+                        style={{
+                          fontSize: 12,
+                          color: '#dc3545',
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>delete</span>
+                        <span>Hapus atau ganti poster</span>
+                      </button>
                     </div>
                   </div>
-
-                  {/* Description */}
-                  <div className="student-field-group">
-                    <label className="student-field-label">Deskripsi Singkat Karya</label>
-                    <textarea
-                      rows={4}
-                      className="form-input-text"
-                      style={{ width: '100%', padding: '12px', fontSize: 14, resize: 'vertical' }}
-                      placeholder="Ceritakan pesan karya, latar belakang game AI, atau proses eksplorasi di Desa Adat Penglipuran..."
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Security Notice */}
-                  <div className="student-notice-box">
-                    <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--accent-terracotta)', flexShrink: 0 }}>
-                      shield
-                    </span>
-                    <div>
-                      <strong>Ketentuan Keamanan Pameran:</strong> Siswa hanya dapat memperbarui konten karya di atas. Seluruh interaksi publik (jumlah suka dan diskusi komentar) dilindungi oleh sistem dan tidak dapat dimodifikasi secara mandiri.
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 14, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
-                    <button
-                      type="button"
-                      className="action-btn"
-                      style={{ padding: '12px 24px', fontSize: 14 }}
-                      onClick={onNavigateHome}
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSaving}
-                      className="student-submit-btn"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>save</span>
-                      <span>{isSaving ? 'Menyimpan...' : 'Simpan Perubahan Karya'}</span>
-                    </button>
-                  </div>
-                </form>
+                )}
               </div>
-            )}
+
+              {/* Field 4: Game URL */}
+              <div className="student-field-group">
+                <label className="student-field-label">
+                  Tautan Game AI Siswa (Opsional)
+                </label>
+                <input
+                  type="url"
+                  className="form-input-text"
+                  style={{ width: '100%', height: 44, padding: '0 14px', fontSize: 14 }}
+                  placeholder="https://scratch.mit.edu/projects/... atau https://itch.io/..."
+                  value={formData.gameUrl}
+                  onChange={(e) => setFormData({ ...formData, gameUrl: e.target.value })}
+                />
+                <div className="student-field-hint">
+                  Tautan game Scratch, Roblox, WebGL, atau platform lain agar pengunjung dapat mencoba langsung game AI kelompok Anda.
+                </div>
+              </div>
+
+              {/* Field 5: Description */}
+              <div className="student-field-group">
+                <label className="student-field-label">
+                  Deskripsi Singkat Karya (Opsional)
+                </label>
+                <textarea
+                  rows={4}
+                  className="form-input-text"
+                  style={{ width: '100%', padding: '12px 14px', fontSize: 14, resize: 'vertical' }}
+                  placeholder="Ceritakan pesan karya, latar belakang game AI, atau eksplorasi kelompok Anda tentang budaya Desa Adat Penglipuran..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </div>
+
+              {/* Security & One-Time Rule Notice */}
+              <div className="student-notice-box" style={{ marginTop: 24, marginBottom: 28 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 22, color: 'var(--accent-terracotta)', flexShrink: 0 }}>
+                  shield
+                </span>
+                <div>
+                  <strong>Ketentuan Kurasi &amp; Pengisian Sekali Pakai:</strong> Pastikan judul dan poster yang diunggah sudah benar. Setiap token kelompok hanya dapat digunakan <strong>satu kali</strong> untuk mengunggah karya. Interaksi publik (jumlah like dan komentar) diatur oleh sistem pameran.
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 14, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+                <button
+                  type="button"
+                  className="action-btn"
+                  style={{ padding: '12px 24px', fontSize: 14 }}
+                  onClick={onNavigateHome}
+                >
+                  Batal
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSaving || !formData.posterUrl}
+                  className="student-submit-btn"
+                  style={{ height: 46 }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>upload</span>
+                  <span>{isSaving ? 'Menerbitkan Karya...' : 'Kirim & Terbitkan Karya Kelompok'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>

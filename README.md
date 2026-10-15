@@ -71,12 +71,22 @@ Untuk menjaga kemurnian dan estetika pameran publik, panel pengelola diletakkan 
 - **Kata Sandi Admin**: Dikonfigurasi secara aman melalui variabel lingkungan `VITE_ADMIN_PASSCODE` di berkas `.env` atau pengaturan Vercel.
 - **Tampilan Publik Bersih**: Navigasi utama dan footer tidak menampilkan tombol maupun tautan admin.
 
-### 🔑 Sistem Kunci Akses Siswa (Single-Use Keys)
+### 🔑 Sistem Kunci Akses Kelompok & Kurasi Siswa (Single-Use Group Tokens)
+Setiap kelompok memiliki **1 token 6-digit unik** dan **hanya 1 kesempatan** untuk menginput karya mereka:
 1. Buka panel admin di `/admin` &rarr; tab **"Kunci Akses Siswa"**.
-2. Klik tombol **"Buat 10 Kunci Baru"** untuk menghasilkan 10 kode angka 6-digit unik.
-3. Klik **"Salin"** pada salah satu kunci dan berikan kepada kelompok siswa yang perlu mengedit karya.
-4. Siswa membuka menu **"Input / Edit Karya"** (atau URL `/edit`), memilih karya mereka, dan memasukkan 6 digit kode.
-5. Kunci langsung **hangus (sekali pakai)** setelah diverifikasi, sehingga tidak bisa disalahgunakan lagi.
+2. **Pilihan Pembuatan Token**:
+   - **⚡ 1-Klik Buat Token Semua Kelas**: Otomatis menghasilkan 10 token untuk masing-masing kelas (Kelompok 1 s.d. 10 x 7 kelas = 70 token).
+   - **+ Tambah Satu Kelompok**: Pilih kelas dan masukkan nama kelompok spesifik (misal: *Kelompok 3 - Tim Wayan*).
+   - **📋 Daftarkan Banyak Kelompok**: Paste daftar nama kelompok dari catatan/spreadsheet baris per baris.
+3. **Fitur Salin Cepat Admin**:
+   - **"Salin Semua Token untuk Pengumuman Grup"**: Menghasilkan pesan berformat WhatsApp/Telegram yang rapi, dikelompokkan per kelas dengan tautan portal dan token masing-masing kelompok, siap dibagikan ke grup publik peserta.
+   - **"Salin Daftar Kunci Saja (List)"**: Menghasilkan daftar tabular (`Kunci \t Kelas \t Kelompok \t Status`) siap ditempel ke Google Sheets/Excel.
+4. **Alur Siswa di Portal Mandiri (`/edit`)**:
+   - Siswa memasukkan 6-digit token kelompok mereka.
+   - Sistem memverifikasi token dan **secara otomatis mengarahkan siswa ke formulir kelas dan kelompoknya** (tanpa perlu mencari/memilih manual).
+   - Siswa mengisi: Judul Karya, Nama Anggota, Poster (bisa unggah berkas langsung dengan **kompresi otomatis WebP** ~150KB agar hemat kuota atau via link Google Drive), Link Game AI (opsional), dan Deskripsi (opsional).
+   - Nomor urut karya (*01, 02, dst.*) dan format media ditentukan secara otomatis oleh sistem.
+   - Begitu karya disimpan, token kelompok langsung **hangus permanen (1 kali kesempatan)** untuk mencegah manipulasi berulang.
 
 ### 📋 Cara Impor Data Spreadsheet & Google Drive
 Ketika Anda menerima spreadsheet berisi daftar karya siswa:

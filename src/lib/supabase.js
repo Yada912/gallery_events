@@ -175,38 +175,57 @@ export async function fetchProjects() {
 }
 
 export async function saveProject(projectData) {
+  initLocalStore();
+  const current = await fetchProjects();
+
+  // Automatic sequential pieceNumber calculation if not provided
+  let pieceNumber = projectData.pieceNumber;
+  if (!pieceNumber) {
+    const classProjects = current.filter(p => p.classId === projectData.classId && p.id !== projectData.id);
+    const existing = current.find(p => p.id === projectData.id);
+    if (existing && existing.pieceNumber) {
+      pieceNumber = existing.pieceNumber;
+    } else {
+      pieceNumber = String(classProjects.length + 1).padStart(2, '0');
+    }
+  }
+
+  const finalProject = {
+    ...projectData,
+    pieceNumber,
+    format: projectData.format || 'WEBP'
+  };
+
   if (isSupabaseConfigured) {
     try {
       await supabase.from('projects').upsert({
-        id: projectData.id,
-        class_id: projectData.classId,
-        piece_number: projectData.pieceNumber,
-        title: projectData.title,
-        creators: projectData.creators,
-        format: projectData.format || 'PNG',
-        poster_url: projectData.posterUrl,
-        game_url: projectData.gameUrl || '',
-        description: projectData.description || '',
-        likes_count: projectData.likesCount || 0,
-        display_order: projectData.displayOrder || 0
+        id: finalProject.id,
+        class_id: finalProject.classId,
+        piece_number: finalProject.pieceNumber,
+        title: finalProject.title,
+        creators: finalProject.creators,
+        format: finalProject.format,
+        poster_url: finalProject.posterUrl,
+        game_url: finalProject.gameUrl || '',
+        description: finalProject.description || '',
+        likes_count: finalProject.likesCount || 0,
+        display_order: finalProject.displayOrder || 0
       });
     } catch (err) {
       console.error('Supabase saveProject error:', err);
     }
   }
 
-  initLocalStore();
-  const current = await fetchProjects();
-  const index = current.findIndex(p => p.id === projectData.id);
+  const index = current.findIndex(p => p.id === finalProject.id);
   let updated;
   if (index >= 0) {
     updated = [...current];
-    updated[index] = { ...updated[index], ...projectData };
+    updated[index] = { ...updated[index], ...finalProject };
   } else {
-    updated = [...current, projectData];
+    updated = [...current, finalProject];
   }
   localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
-  liveChannel?.postMessage({ type: 'PROJECTS_UPDATED', projectId: projectData.id });
+  liveChannel?.postMessage({ type: 'PROJECTS_UPDATED', projectId: finalProject.id });
   return updated;
 }
 
@@ -514,6 +533,72 @@ export function convertGoogleDriveUrl(url) {
   return trimmed;
 }
 
+// ---------------------------------------------------------
+// Client-side High-efficiency Image Compressor (WebP)
+// Automatically scales large camera/render images to max 1600px
+// and encodes to lightweight WebP (~100-150KB) so ~70 projects take <12MB
+// ---------------------------------------------------------
+export async function compressImageToWebP(file, maxDimension = 1600, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      return reject(new Error('Berkas bukan format gambar yang valid.'));
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        // Maintain aspect ratio while bounding within maxDimension
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Try WebP first, fallback to JPEG if browser doesn't support WebP export
+        let dataUrl = canvas.toDataURL('image/webp', quality);
+        let actualFormat = 'WEBP';
+        if (!dataUrl.startsWith('data:image/webp')) {
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+          actualFormat = 'JPEG';
+        }
+
+        const originalSizeKb = Math.round(file.size / 1024);
+        const compressedSizeKb = Math.round((dataUrl.length * (3 / 4)) / 1024);
+
+        resolve({
+          dataUrl,
+          width,
+          height,
+          originalSizeKb,
+          compressedSizeKb,
+          format: actualFormat
+        });
+      };
+      img.onerror = () => reject(new Error('Gagal memuat gambar untuk proses kompresi.'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Gagal membaca berkas gambar.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 // Batch import multiple projects (e.g. from Spreadsheet / CSV / TSV)
 export async function batchImportProjects(newProjectsList) {
   initLocalStore();
@@ -556,7 +641,7 @@ export async function batchImportProjects(newProjectsList) {
       pieceNumber: String(item.pieceNumber || (updatedProjects.filter(p => p.classId === classId).length + 1)).padStart(2, '0'),
       title: item.title,
       creators: item.creators || 'Siswa SMAS Harapan',
-      format: item.format || 'PNG',
+      format: item.format || 'WEBP',
       posterUrl: formattedPoster,
       gameUrl: item.gameUrl || '',
       description: item.description || '',
@@ -583,7 +668,8 @@ export async function batchImportProjects(newProjectsList) {
 }
 
 // ---------------------------------------------------------
-// Access Keys API (Single-use 6-digit keys for student edits)
+// Access Keys & Group Tokens API
+// Each group has a unique 6-digit token and only 1 chance to input their work
 // ---------------------------------------------------------
 export async function fetchAccessKeys() {
   if (isSupabaseConfigured) {
@@ -595,14 +681,16 @@ export async function fetchAccessKeys() {
       if (!error && data) {
         return data.map(k => ({
           key: k.key,
+          classId: k.class_id || '',
+          groupName: k.group_name || '',
+          projectId: k.project_id || '',
           isUsed: k.is_used,
           usedAt: k.used_at ? new Date(k.used_at).toLocaleString('id-ID') : null,
-          usedFor: k.used_for || '',
           createdAt: new Date(k.created_at).toLocaleString('id-ID')
         }));
       }
     } catch (err) {
-      // Table might not exist yet in Supabase, fallback smoothly to local
+      console.warn('Supabase fetchAccessKeys error:', err);
     }
   }
 
@@ -614,48 +702,146 @@ export async function fetchAccessKeys() {
   }
 }
 
-export async function generateAccessKeys(count = 10) {
+// Register a single group token
+export async function createGroupToken({ classId, groupName }) {
   const current = await fetchAccessKeys();
   const existingSet = new Set(current.map(k => k.key));
-  const newKeys = [];
+  let candidate = '';
+  do {
+    candidate = String(Math.floor(100000 + Math.random() * 900000));
+  } while (existingSet.has(candidate));
 
-  for (let i = 0; i < count; i++) {
+  const newToken = {
+    key: candidate,
+    classId: classId || '',
+    groupName: groupName || '',
+    projectId: '',
+    isUsed: false,
+    usedAt: null,
+    createdAt: new Date().toLocaleString('id-ID')
+  };
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase.from('access_keys').insert([{
+        key: newToken.key,
+        class_id: newToken.classId || null,
+        group_name: newToken.groupName,
+        is_used: false,
+        used_at: null,
+        project_id: ''
+      }]);
+    } catch (err) {
+      console.warn('Supabase createGroupToken error:', err);
+    }
+  }
+
+  const combined = [newToken, ...current];
+  localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(combined));
+  liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+  return combined;
+}
+
+// Bulk register group tokens from list (e.g. paste from spreadsheet or multi-group entry)
+export async function bulkCreateGroupTokens(groupsList) {
+  const current = await fetchAccessKeys();
+  const existingSet = new Set(current.map(k => k.key));
+  const newTokens = [];
+
+  for (const item of groupsList) {
     let candidate = '';
     do {
       candidate = String(Math.floor(100000 + Math.random() * 900000));
     } while (existingSet.has(candidate));
-    
     existingSet.add(candidate);
-    newKeys.push({
+
+    newTokens.push({
       key: candidate,
+      classId: item.classId || '',
+      groupName: item.groupName || 'Kelompok Siswa',
+      projectId: '',
       isUsed: false,
       usedAt: null,
-      usedFor: '',
       createdAt: new Date().toLocaleString('id-ID')
     });
   }
 
   if (isSupabaseConfigured) {
     try {
-      const dbPayload = newKeys.map(k => ({
-        key: k.key,
+      const dbPayload = newTokens.map(t => ({
+        key: t.key,
+        class_id: t.classId || null,
+        group_name: t.groupName,
         is_used: false,
         used_at: null,
-        used_for: ''
+        project_id: ''
       }));
-      await supabase.from('access_keys').insert(dbPayload);
+      for (let i = 0; i < dbPayload.length; i += 50) {
+        await supabase.from('access_keys').insert(dbPayload.slice(i, i + 50));
+      }
     } catch (err) {
-      console.warn('Could not save access_keys to Supabase (table may need creating in SQL editor):', err);
+      console.warn('Supabase bulkCreateGroupTokens error:', err);
     }
   }
 
-  const combined = [...newKeys, ...current];
+  const combined = [...newTokens, ...current];
   localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(combined));
   liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
   return combined;
 }
 
-export async function validateAndConsumeAccessKey(inputKey, usedFor = '') {
+// 1-Click generator for all classes (e.g. 10 groups per class x 7 classes = 70 tokens)
+export async function generateTokensForAllClasses(classesList, countPerClass = 10) {
+  const current = await fetchAccessKeys();
+  const existingSet = new Set(current.map(k => k.key));
+  const newTokens = [];
+
+  for (const cls of classesList) {
+    for (let i = 1; i <= countPerClass; i++) {
+      let candidate = '';
+      do {
+        candidate = String(Math.floor(100000 + Math.random() * 900000));
+      } while (existingSet.has(candidate));
+      existingSet.add(candidate);
+
+      newTokens.push({
+        key: candidate,
+        classId: cls.id,
+        groupName: `Kelompok ${i}`,
+        projectId: '',
+        isUsed: false,
+        usedAt: null,
+        createdAt: new Date().toLocaleString('id-ID')
+      });
+    }
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      const dbPayload = newTokens.map(t => ({
+        key: t.key,
+        class_id: t.classId || null,
+        group_name: t.groupName,
+        is_used: false,
+        used_at: null,
+        project_id: ''
+      }));
+      for (let i = 0; i < dbPayload.length; i += 50) {
+        await supabase.from('access_keys').insert(dbPayload.slice(i, i + 50));
+      }
+    } catch (err) {
+      console.warn('Supabase generateTokensForAllClasses error:', err);
+    }
+  }
+
+  const combined = [...newTokens, ...current];
+  localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(combined));
+  liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+  return combined;
+}
+
+// Verify group token without consuming it (forward student to their group form)
+export async function verifyGroupToken(inputKey) {
   const cleanKey = String(inputKey || '').trim();
   if (!cleanKey || cleanKey.length !== 6 || !/^\d{6}$/.test(cleanKey)) {
     return { valid: false, message: 'Kunci akses harus berupa 6 digit angka.' };
@@ -671,27 +857,23 @@ export async function validateAndConsumeAccessKey(inputKey, usedFor = '') {
 
       if (!error && data) {
         if (data.is_used) {
-          return { valid: false, message: 'Kunci akses ini sudah pernah digunakan. Minta kunci baru ke panitia.' };
+          return {
+            valid: false,
+            message: `Kunci akses ini sudah digunakan pada ${new Date(data.used_at).toLocaleString('id-ID')}. Setiap kelompok hanya memiliki 1 kali kesempatan input karya.`
+          };
         }
-        // Consume key in Supabase
-        await supabase
-          .from('access_keys')
-          .update({
-            is_used: true,
-            used_at: new Date().toISOString(),
-            used_for: usedFor
-          })
-          .eq('key', cleanKey);
-
-        // Also update local store
-        const current = await fetchAccessKeys();
-        const updated = current.map(k => k.key === cleanKey ? { ...k, isUsed: true, usedAt: new Date().toLocaleString('id-ID'), usedFor } : k);
-        localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(updated));
-        liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
-        return { valid: true, key: cleanKey };
+        return {
+          valid: true,
+          token: {
+            key: data.key,
+            classId: data.class_id,
+            groupName: data.group_name,
+            projectId: data.project_id || ''
+          }
+        };
       }
     } catch (err) {
-      console.warn('Supabase key validation fallback:', err);
+      console.warn('Supabase verifyGroupToken error:', err);
     }
   }
 
@@ -699,16 +881,107 @@ export async function validateAndConsumeAccessKey(inputKey, usedFor = '') {
   const current = await fetchAccessKeys();
   const match = current.find(k => k.key === cleanKey);
   if (!match) {
-    return { valid: false, message: 'Kunci akses tidak ditemukan. Periksa kembali 6 digit kode dari panitia.' };
+    return { valid: false, message: 'Kunci akses tidak terdaftar. Periksa kembali 6 digit kode dari panitia.' };
   }
   if (match.isUsed) {
-    return { valid: false, message: 'Kunci akses ini sudah pernah digunakan. Minta kunci baru ke panitia.' };
+    return {
+      valid: false,
+      message: `Kunci akses ini sudah digunakan pada ${match.usedAt || 'sebelumnya'}. Setiap kelompok hanya memiliki 1 kali kesempatan input karya.`
+    };
   }
 
-  const updated = current.map(k => k.key === cleanKey ? { ...k, isUsed: true, usedAt: new Date().toLocaleString('id-ID'), usedFor } : k);
+  return {
+    valid: true,
+    token: {
+      key: match.key,
+      classId: match.classId,
+      groupName: match.groupName,
+      projectId: match.projectId || ''
+    }
+  };
+}
+
+// Consume group token once the student successfully submits their work
+export async function consumeGroupToken(inputKey, projectId = '') {
+  const cleanKey = String(inputKey || '').trim();
+  if (isSupabaseConfigured) {
+    try {
+      await supabase
+        .from('access_keys')
+        .update({
+          is_used: true,
+          used_at: new Date().toISOString(),
+          project_id: projectId
+        })
+        .eq('key', cleanKey);
+    } catch (err) {
+      console.warn('Supabase consumeGroupToken error:', err);
+    }
+  }
+
+  const current = await fetchAccessKeys();
+  const updated = current.map(k => k.key === cleanKey ? {
+    ...k,
+    isUsed: true,
+    usedAt: new Date().toLocaleString('id-ID'),
+    projectId
+  } : k);
   localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(updated));
   liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
-  return { valid: true, key: cleanKey };
+  return updated;
+}
+
+// Backward compatible single-use key generator & validator
+export async function generateAccessKeys(count = 10) {
+  const current = await fetchAccessKeys();
+  const existingSet = new Set(current.map(k => k.key));
+  const newKeys = [];
+
+  for (let i = 0; i < count; i++) {
+    let candidate = '';
+    do {
+      candidate = String(Math.floor(100000 + Math.random() * 900000));
+    } while (existingSet.has(candidate));
+    
+    existingSet.add(candidate);
+    newKeys.push({
+      key: candidate,
+      classId: '',
+      groupName: `Kelompok ${i + 1}`,
+      projectId: '',
+      isUsed: false,
+      usedAt: null,
+      createdAt: new Date().toLocaleString('id-ID')
+    });
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      const dbPayload = newKeys.map(k => ({
+        key: k.key,
+        class_id: null,
+        group_name: k.groupName,
+        is_used: false,
+        used_at: null,
+        project_id: ''
+      }));
+      await supabase.from('access_keys').insert(dbPayload);
+    } catch (err) {
+      console.warn('Supabase key insert error:', err);
+    }
+  }
+
+  const combined = [...newKeys, ...current];
+  localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(combined));
+  liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+  return combined;
+}
+
+export async function validateAndConsumeAccessKey(inputKey, usedFor = '') {
+  const verified = await verifyGroupToken(inputKey);
+  if (!verified.valid) return verified;
+  await consumeGroupToken(inputKey, usedFor);
+  return { valid: true, key: inputKey };
 }
 
 export async function deleteAccessKey(key) {
@@ -751,4 +1024,5 @@ export async function clearAllDatabaseAndDemoData() {
   localStorage.removeItem(STORAGE_KEYS.LIKED_PROJECTS);
   liveChannel?.postMessage({ type: 'PROJECTS_UPDATED' });
 }
+
 
