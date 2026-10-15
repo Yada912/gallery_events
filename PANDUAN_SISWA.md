@@ -1,116 +1,170 @@
 # Panduan Lengkap Siswa: Pengunggahan & Pembaruan Karya
-## Pameran Kokulikuler AI Game — "Gema Belajar"
+## Pameran Kokurikuler AI Game — "Gema Belajar"
 ### SMAS Kristen Harapan Denpasar (Bali)
 
-Selamat datang di sistem kurasi mandiri karya pameran **Gema Belajar**! Dokumen ini memandu setiap kelompok siswa untuk mengunggah karya game AI dan poster pameran secara mandiri, rapi, dan optimal.
+Selamat datang di sistem kurasi mandiri karya pameran **Gema Belajar**! Dokumen panduan ini disusun khusus agar setiap kelompok siswa dapat mengunggah karya game AI dan poster pameran secara mandiri, rapi, dan percaya diri dengan panduan visual langkah demi langkah.
 
 ---
 
-## 📌 1. Persiapan Sebelum Mengisi
+## 📌 1. Persiapan Sebelum Mengisi Formulir
 
-Sebelum membuka portal pengunggahan, pastikan perwakilan kelompok telah menyiapkan:
+Sebelum membuka portal pengunggahan, pastikan perwakilan kelompok telah menyiapkan 4 hal berikut:
 
 1. **Kunci Akses 6-Digit Kelompok**:  
-   Dapatkan token unik 6 digit (contoh: `965769`) dari guru pendamping atau panitia pameran. Setiap kelompok memiliki **1 token khusus** dengan **1 kesempatan simpan**.
+   Dapatkan token unik 6 digit (contoh: `965769`) dari guru pendamping atau panitia. Setiap kelompok memiliki **1 token khusus** dengan **1 kesempatan simpan**.
 2. **Berkas Poster Karya**:  
-   - Format: JPG, PNG, JPEG, atau WebP.
-   - Sistem dilengkapi **kompresi otomatis modern** (mengubah gambar besar menjadi WebP ~150 KB beresolusi tajam tanpa mengurangi kualitas visual).
-   - *Alternatif:* Anda juga dapat menggunakan link **Google Drive** poster (pastikan hak akses sudah disetel ke *"Siapa saja yang memiliki tautan dapat melihat"*).
+   - Format gambar: JPG, PNG, JPEG, atau WebP.
+   - Sistem dilengkapi **kompresi otomatis modern** yang langsung mengubah gambar menjadi format WebP ringan (~100–200 KB) dengan resolusi tajam agar cepat dimuat di HP pengunjung.
+   - *Alternatif:* Tersedia opsi **Tautan Google Drive** jika berkas poster tersimpan di Drive.
 3. **Tautan Game AI Siswa**:  
-   Tautan game yang dapat dimainkan langsung (misalnya di web, itch.io, Google Drive build, dsb.).
+   Tautan game buatan kelompok Anda (misalnya tautan Web, Scratch, itch.io, Google Drive, Roblox, dsb.) agar pengunjung dapat langsung memainkannya.
 4. **Nama Kelompok & Anggota**:  
-   Nama kelompok (sesuai daftar kurasi) beserta nama lengkap anggota tim.
+   Nama kelompok (sesuai daftar kurasi) beserta nama seluruh anggota tim pembuat.
 
 ---
 
-## 🚀 2. Cara Mengunggah Karya Baru (Langkah demi Langkah)
+## 🚀 2. Panduan Langkah demi Langkah Mengunggah Karya Baru
 
 ### Langkah 1: Buka Portal Mandiri Siswa
-1. Buka situs pameran Gema Belajar di browser ponsel atau laptop Anda.
-2. Di pojok kanan atas bilah navigasi, klik menu **"Input / Edit Karya"** (atau buka langsung alamat: `https://[alamat-web]/edit`).
+1. Buka situs web pameran Gema Belajar di browser HP atau laptop Anda.
+2. Di pojok kanan atas bilah navigasi, klik menu **"Input / Edit Karya"** (atau buka alamat langsung: `https://[alamat-web]/edit` atau `#edit`).
 
-![Langkah 1: Layar Memasukkan Kunci Akses Siswa](./docs/screenshots/langkah1_masukkan_token.png)
-
----
-
-### Langkah 2: Masukkan Kunci Akses 6-Digit
-1. Ketikkan 6 digit token kelompok Anda pada kotak PIN yang tersedia.
-2. Klik tombol **"Masuk & Buka Formulir"**.
-3. Sistem akan memverifikasi token dan **otomatis menghubungkan Anda ke kelas dan kelompok Anda**.
-
-![Langkah 2: Formulir Karya Terbuka Otomatis untuk Kelompok Anda](./docs/screenshots/langkah2_formulir_kelompok.png)
-
-> **Catatan Penting:**  
-> Banner biru di bagian atas formulir akan mengonfirmasi identitas kelompok dan kelas Anda. Nomor urut karya (*Karya 01, Karya 02, dst.*) akan diatur secara otomatis dan berurutan oleh sistem galeri.
+![Langkah 1: Menu Input / Edit Karya pada Navigasi Header](./docs/screenshots/01_navigasi_header.png)
 
 ---
 
-### Langkah 3: Mengisi Formulir Karya Kelompok
+### Langkah 2: Masukkan Kunci Akses 6-Digit Kelompok
+1. Masukkan 6 digit angka token kelompok Anda pada kotak PIN yang disediakan.
+2. Klik tombol terracotta bertuliskan **"Masuk & Buka Formulir →"**.
 
-Isi formulir dengan data proyek game AI Anda:
-
-1. **Judul Karya / Game AI (Wajib):**  
-   Tuliskan judul game kelompok Anda secara jelas dan menarik (contoh: *Bambang-Dice: The Bamboo Quest*).
-2. **Nama Kelompok & Anggota (Wajib):**  
-   Sebutkan nama kelompok dan nama seluruh anggota tim pembuat (contoh: *KUACI — Made, Putu, Kadek*).
-3. **Unggah Poster Karya (Wajib):**  
-   Pilih salah satu metode berikut:
-   - **Opsi A: Unggah Berkas Langsung (Direkomendasikan)**  
-     Tarik (*drag & drop*) berkas gambar poster Anda ke area unggah atau klik untuk memilih berkas dari HP/Laptop. Sistem otomatis mengompresi gambar menjadi format WebP yang sangat ringan (~100-200 KB).  
-     > **Indikator Sukses yang Jelas:** Begitu gambar selesai diproses, kotak abu-abu besar otomatis **tertutup/disembunyikan** dan berganti menjadi **Kartu Konfirmasi Hijau** yang menampilkan thumbnail poster, lencana centang verifikasi, dan rincian ukuran file. Anda tidak perlu bingung lagi apakah file sudah masuk atau belum. Bila ingin mengganti, cukup klik tombol *"Ganti Berkas Gambar"*.
-   - **Opsi B: Tautan Google Drive**  
-     Pilih tab *Tautan Google Drive*, lalu tempelkan link berbagi poster Google Drive Anda. Sistem akan langsung mengonversinya menjadi gambar pameran yang tampil di galeri.
-4. **Tautan Game AI Siswa:**  
-   Tempelkan URL game Anda agar pengunjung pameran dapat menekan tombol **"Buka Karya"** untuk mencoba game Anda.
-5. **Deskripsi Karya:**  
-   Ceritakan ide cerita game, latar belakang budaya/Penglipuran, atau cara memainkan game kelompok Anda.
+![Langkah 2: Memasukkan Kunci Akses 6-Digit Siswa](./docs/screenshots/02_masukkan_token.png)
 
 ---
 
-### Langkah 4: Simpan & Publikasikan Karya
-1. Periksa kembali seluruh data yang telah Anda masukkan.
-2. Klik tombol **"Simpan & Publikasikan Karya"** di bagian bawah formulir.
-3. Selamat! Karya Anda telah resmi terpasang di galeri kelas. Token kelompok Anda akan berstatus selesai terpakai.
+### Langkah 3: Verifikasi Identitas Kelompok & Kelas Terbuka Otomatis
+1. Sistem akan memverifikasi token dan **otomatis mengenali kelas dan nama kelompok Anda**.
+2. Perhatikan banner biru di bagian atas formulir:  
+   - Menampilkan konfirmasi identitas: contoh `Kelas: X-1 • KUACI`.
+   - Nomor urut karya (*Karya 01, Karya 02, dst.*) diatur secara otomatis dan rapi oleh sistem galeri.
+
+![Langkah 3: Banner Identitas Kelompok Terhubung Otomatis](./docs/screenshots/03_banner_identitas_kelompok.png)
+
+---
+
+### Langkah 4: Mengisi Judul Karya dan Anggota Tim
+1. **Judul Karya / Judul Game AI (Wajib):**  
+   Tuliskan judul game kelompok Anda secara jelas dan menarik (contoh: *Petualangan Desa Adat Penglipuran AI*).
+2. **Nama Kelompok & Anggota Pembuat (Wajib):**  
+   Tuliskan nama kelompok beserta nama-nama anggota tim pembuat karya (contoh: *KUACI (Kadek, Putu, Wayan, Made)*).
+
+![Langkah 4: Mengisi Judul Karya dan Nama Kelompok Pembuat](./docs/screenshots/04_isi_data_dan_dropzone.png)
+
+---
+
+### Langkah 5: Mengunggah Poster Karya
+
+Pilih salah satu dari 2 metode yang tersedia:
+
+#### Opsi A: Unggah Berkas Gambar Langsung (Sangat Direkomendasikan)
+1. Klik area kotak putus-putus abu-abu bertuliskan *"Klik untuk memilih berkas poster atau seret gambar ke sini"*, atau tarik (*drag & drop*) berkas gambar poster dari galeri HP/laptop Anda.
+2. Tunggu 1–2 detik saat sistem otomatis mengompresi gambar ke format WebP ringan.
+
+> **💡 Kepastian Visual (Anti-Ragu):**  
+> Begitu berkas selesai diproses, **kotak abu-abu besar otomatis hilang/disembunyikan** dan seketika berganti menjadi **Kartu Konfirmasi Hijau** yang membuktikan bahwa berkas Anda sudah 100% terpasang dengan aman!
+
+![Langkah 5A: Kartu Konfirmasi Hijau Bukti Poster Berhasil Terpasang](./docs/screenshots/05_konfirmasi_poster_terpasang.png)
+
+Kartu konfirmasi hijau menampilkan:
+* **Thumbnail Pratinjau**: Pratinjau poster Anda dengan lencana centang hijau.
+* **Status Terverifikasi**: Label tebal bertuliskan `Berkas Poster Berhasil Dipilih & Terpasang`.
+* **Tombol "Ganti Berkas Gambar"**: Jika ingin memilih ulang berkas lain.
+* **Tombol "Hapus & Pilih Ulang"**: Menghapus poster dan memunculkan kembali kotak seret awal.
+
+---
+
+#### Opsi B: Menggunakan Tautan Google Drive (Alternatif)
+Jika poster Anda berada di Google Drive:
+1. Klik tab **"Tautan Google Drive"**.
+2. Tempelkan link berbagi Google Drive Anda ke dalam kotak input.
+3. Sistem secara otomatis mendeteksi dan menampilkan banner hijau **Pratinjau Poster Terdeteksi**.
+
+> **Penting untuk Google Drive:** Pastikan izin berbagi pada file Google Drive Anda telah disetel ke *"Siapa saja yang memiliki tautan dapat melihat"* (Anyone with the link can view).
+
+![Langkah 5B: Memasukkan Tautan Google Drive dan Pratinjau Terdeteksi](./docs/screenshots/06_opsi_tautan_google_drive.png)
+
+---
+
+### Langkah 6: Masukkan Tautan Game AI & Simpan Karya
+1. **Tautan Game AI Siswa (Opsional):**  
+   Tempelkan link game kelompok Anda agar pengunjung pameran dapat mencoba memainkannya.
+2. **Deskripsi Singkat Karya (Opsional):**  
+   Tuliskan latar belakang game, pesan budaya/Penglipuran, atau petunjuk cara bermain.
+3. Periksa kembali seluruh isian formulir.
+4. Klik tombol merah-bata **"Kirim & Terbitkan Karya"** di bagian paling bawah formulir.
+
+![Langkah 6: Memeriksa Data dan Menekan Tombol Kirim & Terbitkan Karya](./docs/screenshots/07_tombol_simpan_karya.png)
+
+---
+
+### Langkah 7: Layar Konfirmasi Sukses Penerbitan
+Setelah tombol simpan ditekan, sistem menampilkan layar sukses:
+1. Muncul pesan **"Karya Berhasil Diterbitkan"** dengan centang hijau besar.
+2. Kunci akses kelompok Anda ditandai selesai (1 kali penggunaan).
+3. Anda dapat menekan tombol **"Lihat Karya di Galeri Kelas"** untuk langsung melihat hasil tampilannya di pameran umum!
+
+![Langkah 7: Layar Konfirmasi Karya Berhasil Diterbitkan](./docs/screenshots/08_karya_berhasil_diterbitkan.png)
 
 ---
 
 ## ✏️ 3. Cara Mengedit / Memperbaiki Karya yang Sudah Diinput
 
-Jika karya kelompok Anda sudah pernah disimpan tetapi ada perbaikan mendesak (misalnya: revisi poster, update link game baru, atau typo judul):
+Jika karya kelompok Anda sudah pernah disimpan tetapi ada perbaikan mendesak (misalnya: revisi poster baru, perbaikan link game, atau typo pada judul/nama):
 
-1. **Minta Kunci Standalone / Bebas ke Panitia/Guru**:  
-   Jelaskan bagian apa yang ingin diperbaiki agar panitia memberikan kunci darurat susulan.
-2. **Buka Portal `/edit`** dan masukkan kunci standalone tersebut.
-3. Sistem akan mengenali kunci tersebut dan menampilkan panel pilihan:
-   - **Pilih Kelas Sasaran**: Pilih kelas Anda (contoh: *X-4*).
-   - **Pilihan Aksi**: Klik tombol **"✏️ Perbaiki Karya yang Ada"**.
-   - **Pilih Karya**: Pilih judul karya kelompok Anda dari daftar dropdown.
+1. **Minta Kunci Akses Standalone / Susulan** ke guru pendamping atau panitia pameran.
+2. Buka halaman `/edit` dan masukkan kunci standalone tersebut.
+3. Pada panel kuning yang muncul:
+   - **Pilih Kelas Sasaran**: Pilih kelas kelompok Anda (misal: `X-4`).
+   - **Pilihan Aksi**: Klik tombol hitam bertuliskan **"Perbaiki Karya yang Ada"**.
+   - **Pilih Karya yang Ingin Diperbaiki**: Pilih judul karya kelompok Anda dari daftar dropdown.
+4. Seluruh data karya lama akan otomatis termuat ke formulir. Ubah bagian yang perlu diperbaiki, lalu klik **"Kirim & Terbitkan Karya"**.
 
-![Langkah Revisi: Memilih Karya yang Ingin Diperbaiki](./docs/screenshots/revisi_karya.png)
+> *Catatan:* Semua jumlah suka (*likes*) dan komentar yang sudah diberikan oleh pengunjung galeri akan tetap aman terjaga dan tidak akan hilang saat Anda melakukan revisi.
 
-4. Seluruh data karya lama akan otomatis dimuat ke formulir. Ubah bagian yang perlu diperbaiki, lalu klik **"Simpan & Publikasikan Karya"**.
-5. *Semua jumlah suka (likes) dan komentar yang sudah diberikan oleh pengunjung galeri akan tetap aman terjaga.*
+![Langkah Revisi: Menggunakan Kunci Standalone untuk Memperbaiki Karya](./docs/screenshots/09_mode_revisi_karya.png)
 
 ---
 
-## 🎨 4. Tampilan Karya di Galeri Pameran
+## 🎨 4. Tampilan Karya di Galeri Pameran & Interaksi Pengunjung
 
-Setelah disimpan, karya kelompok Anda akan langsung dapat dinikmati oleh seluruh guru, siswa, dan pengunjung:
+Setelah karya Anda terbit, seluruh pengunjung pameran dapat menikmati karya Anda:
 
-![Tampilan Karya Siswa di Galeri Pameran](./docs/screenshots/tampilan_galeri.png)
+### Tampilan Karya di Galeri Pameran
+Karya Anda akan tampil dengan poster beresolusi tinggi, lencana kelas, judul, nama pembuat, serta tombol apresiasi *Suka*.
 
-* **Tombol "Buka Karya"**: Terletak jelas di atas kolom komentar agar pengunjung langsung mencoba game Anda.
-* **Diskusi & Apresiasi**: Pengunjung dan siswa lain dapat memberikan likes serta komentar (nama wajib diisi dengan format: **`nama-kelas-absen`**, contoh: `Wayan-X1-12`).
+![Tampilan Karya Siswa di Galeri Pameran](./docs/screenshots/10_tampilan_karya_di_galeri.png)
+
+---
+
+### Tombol "Buka Karya" & Kolom Komentar Apresiasi
+Di halaman detail karya:
+1. **Tombol "Buka Karya"**: Terletak jelas di atas kolom komentar agar pengunjung langsung mencoba game AI buatan kelompok Anda.
+2. **Kolom Komentar Terstruktur**: Pengunjung dan teman sekelas dapat memberikan apresiasi dengan mencantumkan nama berformat resmi:  
+   **`nama-kelas-absen`** (Contoh: `Wayan-X1-12`).
+
+![Fitur Buka Karya dan Kolom Komentar dengan Format Resmi](./docs/screenshots/11_buka_karya_dan_komentar.png)
 
 ---
 
 ## ❓ 5. Pertanyaan Umum & Kendala Teknis (FAQ)
 
-### Q: Kunci muncul tulisan *"Kunci akses sudah digunakan"*?
-> **Jawab:** Setiap kunci kelompok hanya dapat digunakan 1 kali simpan. Jika Anda sudah pernah menekan tombol simpan atau salah satu anggota tim sudah menyimpannya, kunci tidak dapat digunakan ulang. Hubungi panitia/guru untuk mendapatkan kunci revisi.
+### Q: Muncul pesan *"Kunci akses sudah digunakan"* saat memasukkan token?
+> **Jawab:** Setiap kunci kelompok hanya dapat digunakan untuk 1 kali penyimpanan resmi demi menjaga keamanan data kurasi. Jika kelompok Anda perlu melakukan revisi poster atau judul, silakan lapor ke panitia/guru pendamping untuk diberikan kunci susulan/standalone.
+
+### Q: Mengapa setelah mengunggah gambar, kotak seret file hilang?
+> **Jawab:** Itu adalah fitur otomatis sistem! Kotak abu-abu sengaja ditutup dan digantikan oleh **Kartu Konfirmasi Hijau** agar Anda yakin 100% bahwa poster sudah berhasil terpasang. Jika ingin mengganti gambar, cukup klik tombol *"Ganti Berkas Gambar"* di kartu hijau tersebut.
 
 ### Q: Poster dari Google Drive tidak muncul atau pecah?
-> **Jawab:** Pastikan pengaturan link berbagi di Google Drive telah disetel ke **"Anyone with the link can view" (Siapa saja yang memiliki tautan dapat melihat)**. Atau lebih mudahnya, gunakan tombol **"Unggah Berkas Langsung"** agar gambar langsung tersimpan di galeri.
+> **Jawab:** Pastikan pengaturan link berbagi di Google Drive telah disetel ke **"Anyone with the link can view" (Siapa saja yang memiliki tautan dapat melihat)**. Atau gunakan **"Unggah Gambar Langsung"** agar gambar langsung tersimpan di galeri.
 
-### Q: Apakah bisa mengunggah dari HP?
-> **Jawab:** Ya, seluruh halaman web Gema Belajar didesain responsif dan ringan, sehingga lancar digunakan di perangkat ponsel Android maupun iPhone.
+### Q: Apakah bisa mengunggah dan membuka pameran dari HP?
+> **Jawab:** Tentu saja bisa! Seluruh sistem Gema Belajar didesain responsif dan sangat ringan untuk dibuka melalui Google Chrome atau Safari di perangkat Android maupun iPhone.
