@@ -3,7 +3,8 @@ import React from 'react';
 export default function Header({ 
   activeView, 
   onNavigateHome, 
-  onOpenExhibitionInfo 
+  onOpenExhibitionInfo,
+  onOpenStudentPortal
 }) {
   return (
     <header className="site-header">
@@ -18,7 +19,7 @@ export default function Header({
             <span>Gema Belajar</span>
           </div>
 
-          {/* Navigation (Clean Public View) */}
+          {/* Navigation (Clean Public View + Student Edit Portal) */}
           <nav className="header-nav">
             <span 
               className={`nav-link ${activeView === 'INDEX' ? 'active' : ''}`}
@@ -33,6 +34,17 @@ export default function Header({
             >
               Pameran siswa
             </span>
+
+            {onOpenStudentPortal && (
+              <span 
+                className={`nav-link ${activeView === 'STUDENT_PORTAL' ? 'active' : ''}`}
+                onClick={onOpenStudentPortal}
+                style={{ cursor: 'pointer' }}
+                title="Input atau perbarui karya kelompok siswa"
+              >
+                Input / Edit Karya
+              </span>
+            )}
           </nav>
         </div>
       </div>

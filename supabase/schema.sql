@@ -42,10 +42,20 @@ create table if not exists public.comments (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 4. Access Keys Table (Single-use 6-digit keys for student edits)
+create table if not exists public.access_keys (
+  key text primary key,
+  is_used boolean default false,
+  used_at timestamp with time zone,
+  used_for text default '',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- Enable Row Level Security (RLS)
 alter table public.classes enable row level security;
 alter table public.projects enable row level security;
 alter table public.comments enable row level security;
+alter table public.access_keys enable row level security;
 
 -- Public read access
 create policy "Allow public read access on classes"
@@ -57,12 +67,18 @@ create policy "Allow public read access on projects"
 create policy "Allow public read access on comments"
   on public.comments for select using (true);
 
+create policy "Allow public read access on access_keys"
+  on public.access_keys for select using (true);
+
 -- Public write access for comments & likes
 create policy "Allow public insert on comments"
   on public.comments for insert with check (true);
 
 create policy "Allow public update likes on projects"
   on public.projects for update using (true) with check (true);
+
+create policy "Allow update on access_keys"
+  on public.access_keys for update using (true) with check (true);
 
 -- Admin CRUD access (Permissive or via Admin Key)
 create policy "Allow all operations for admin on classes"
@@ -74,6 +90,9 @@ create policy "Allow all operations for admin on projects"
 create policy "Allow all operations for admin on comments"
   on public.comments for all using (true) with check (true);
 
+create policy "Allow all operations on access_keys"
+  on public.access_keys for all using (true) with check (true);
+
 -- Enable Supabase Realtime
 begin;
   drop publication if exists supabase_realtime;
@@ -84,3 +103,4 @@ commit;
 create index if not exists idx_projects_class on public.projects(class_id);
 create index if not exists idx_comments_project on public.comments(project_id);
 create index if not exists idx_comments_created on public.comments(created_at desc);
+create index if not exists idx_access_keys_used on public.access_keys(is_used);

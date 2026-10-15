@@ -4,6 +4,7 @@ import IntroScreen from './components/IntroScreen';
 import ClassIndex from './components/ClassIndex';
 import ArtworkDetail from './components/ArtworkDetail';
 import AdminPage from './components/AdminPage';
+import StudentPortal from './components/StudentPortal';
 import ExhibitionModal from './components/ExhibitionModal';
 import Footer from './components/Footer';
 
@@ -23,7 +24,7 @@ import {
 } from './lib/supabase';
 
 export default function App() {
-  // Route state: 'PUBLIC' | 'ADMIN'
+  // Route state: 'PUBLIC' | 'ADMIN' | 'STUDENT_PORTAL'
   const [currentRoute, setCurrentRoute] = useState(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
@@ -31,9 +32,14 @@ export default function App() {
       if (path === '/admin' || path.startsWith('/admin') || hash === '#admin') {
         return 'ADMIN';
       }
+      if (path === '/edit' || path.startsWith('/edit') || hash === '#edit' || hash === '#input-karya') {
+        return 'STUDENT_PORTAL';
+      }
     }
     return 'PUBLIC';
   });
+
+  const [initialStudentClass, setInitialStudentClass] = useState(null);
 
   const [showIntro, setShowIntro] = useState(true);
   const [classes, setClasses] = useState([]);
@@ -155,6 +161,9 @@ export default function App() {
 
       if (path === '/admin' || path.startsWith('/admin') || hash === '#admin') {
         setCurrentRoute('ADMIN');
+      } else if (path === '/edit' || path.startsWith('/edit') || hash === '#edit' || hash === '#input-karya') {
+        setCurrentRoute('STUDENT_PORTAL');
+        setShowIntro(false);
       } else {
         setCurrentRoute('PUBLIC');
         if (hash && hash.startsWith('#karya-')) {
@@ -187,13 +196,26 @@ export default function App() {
     const classProjects = projects.filter(p => p.classId === cls.id);
     if (classProjects.length > 0) {
       handleSelectProject(classProjects[0]);
+    } else {
+      handleOpenStudentPortal(cls);
     }
+  };
+
+  const handleOpenStudentPortal = (cls = null) => {
+    setInitialStudentClass(cls);
+    setCurrentRoute('STUDENT_PORTAL');
+    setShowIntro(false);
+    if (window.location.pathname !== '/edit') {
+      window.location.hash = '#edit';
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNavigateHome = () => {
     setActiveView('INDEX');
     setCurrentRoute('PUBLIC');
-    if (window.location.pathname === '/admin') {
+    setInitialStudentClass(null);
+    if (window.location.pathname === '/admin' || window.location.pathname === '/edit') {
       window.history.pushState({}, '', '/');
     } else {
       window.location.hash = '';
@@ -299,6 +321,22 @@ export default function App() {
   }
 
   // -------------------------------------------------------------
+  // Student Self-Service Edit Route View (/edit or #edit)
+  // -------------------------------------------------------------
+  if (currentRoute === 'STUDENT_PORTAL') {
+    return (
+      <StudentPortal
+        classes={classes}
+        projects={projects}
+        initialClass={initialStudentClass}
+        onSaveProject={handleSaveProject}
+        onNavigateHome={handleNavigateHome}
+        onSelectProject={handleSelectProject}
+      />
+    );
+  }
+
+  // -------------------------------------------------------------
   // Public Exhibition Route View (/)
   // -------------------------------------------------------------
   const currentProject = projects.find(p => p.id === selectedProjectId) || projects[0];
@@ -316,11 +354,12 @@ export default function App() {
         <IntroScreen onComplete={() => setShowIntro(false)} />
       )}
 
-      {/* Main Public Exhibition Header (No admin instances) */}
+      {/* Main Public Exhibition Header */}
       <Header
         activeView={activeView}
         onNavigateHome={handleNavigateHome}
         onOpenExhibitionInfo={() => setExhibitionInfoOpen(true)}
+        onOpenStudentPortal={() => handleOpenStudentPortal()}
       />
 
       {/* Body Views */}
@@ -334,6 +373,7 @@ export default function App() {
           projects={projects}
           onSelectClass={handleSelectClass}
           onSelectProject={handleSelectProject}
+          onOpenStudentPortal={handleOpenStudentPortal}
         />
       ) : (
         <ArtworkDetail
@@ -349,7 +389,7 @@ export default function App() {
       )}
 
       {/* Public Exhibition Footer */}
-      <Footer />
+      <Footer onOpenStudentPortal={() => handleOpenStudentPortal()} />
 
       {/* Exhibition Context Modal */}
       <ExhibitionModal

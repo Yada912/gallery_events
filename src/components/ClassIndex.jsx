@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowUpRight } from 'lucide-react';
 
-export default function ClassIndex({ classes, projects, onSelectClass, onSelectProject }) {
+export default function ClassIndex({ classes, projects, onSelectClass, onSelectProject, onOpenStudentPortal }) {
   const totalClasses = classes.length;
   const totalArtworks = projects.length;
 
@@ -18,7 +18,7 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
           Ruang untuk setiap suara.
         </h1>
         <p className="hero-description">
-          Jelajahi karya siswa dari setiap kelas. Temukan karya yang menyentuh hati dan berikan semangat.
+          Jelajahi karya siswa dari setiap kelas. Temukan karya yang menyentuh hati dan berikan apresiasi.
         </p>
       </section>
 
@@ -32,6 +32,52 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
           {padZero(totalClasses)} kelas / {padZero(totalArtworks)} karya
         </div>
       </div>
+
+      {totalArtworks === 0 && (
+        <div style={{
+          padding: '24px 28px',
+          margin: '0 0 32px 0',
+          background: 'rgba(196, 75, 43, 0.04)',
+          border: '1px dashed rgba(196, 75, 43, 0.25)',
+          borderRadius: '4px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px'
+        }}>
+          <div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+              Database Terhubung &amp; Siap untuk Karya Siswa
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              Belum ada karya yang dipublikasikan. Siswa dapat memasukkan karya menggunakan kunci akses dari panitia.
+            </div>
+          </div>
+          {onOpenStudentPortal && (
+            <button 
+              type="button"
+              className="action-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 18px',
+                fontSize: 13,
+                fontWeight: 600,
+                background: 'var(--accent-terracotta)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 4
+              }}
+              onClick={() => onOpenStudentPortal()}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>edit_square</span>
+              <span>Input / Edit Karya Siswa</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Classes Grid */}
       <div className="classes-grid">
@@ -59,6 +105,8 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
               onClick={() => {
                 if (firstProject) {
                   onSelectProject(firstProject);
+                } else if (onOpenStudentPortal) {
+                  onOpenStudentPortal(cls);
                 } else {
                   onSelectClass(cls);
                 }
@@ -84,7 +132,7 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                       >
                         {isLast && (
                           <div className="stack-card-preview-label">
-                            Pratinjau karya
+                            {classProjects.length > 0 ? 'Pratinjau karya' : 'Karya segera hadir'}
                           </div>
                         )}
                       </div>
@@ -98,13 +146,13 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                 <div className="class-identity">
                   <h2 className="class-card-title">{cls.name}</h2>
                   <div className="class-card-meta">
-                    {classProjects.length} karya &middot; Karya siswa
+                    {classProjects.length > 0 ? `${classProjects.length} karya · Karya siswa` : '0 karya · Klik untuk input'}
                   </div>
                 </div>
 
                 <div 
                   className="open-arrow-btn"
-                  title={`Buka galeri ${cls.name}`}
+                  title={classProjects.length > 0 ? `Buka galeri ${cls.name}` : `Input karya ${cls.name}`}
                 >
                   <ArrowUpRight size={18} />
                 </div>

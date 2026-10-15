@@ -18,7 +18,8 @@ import {
   Upload,
   Eye,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Key
 } from 'lucide-react';
 import { 
   isSupabaseConfigured, 
@@ -26,7 +27,12 @@ import {
   convertGoogleDriveUrl,
   setProjectLikesDirectly,
   updateCommentInProject,
-  batchImportProjects
+  batchImportProjects,
+  fetchAccessKeys,
+  generateAccessKeys,
+  deleteAccessKey,
+  clearUsedAccessKeys,
+  clearAllDatabaseAndDemoData
 } from '../lib/supabase';
 
 export default function AdminPage({
@@ -46,9 +52,21 @@ export default function AdminPage({
   });
   const [errorMsg, setErrorMsg] = useState('');
 
-  const [activeTab, setActiveTab] = useState('PROJECTS'); // 'PROJECTS', 'CLASSES', 'COMMENTS', 'IMPORT', 'SETTINGS'
+  const [activeTab, setActiveTab] = useState('PROJECTS'); // 'PROJECTS', 'CLASSES', 'COMMENTS', 'IMPORT', 'KEYS', 'SETTINGS'
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Access Keys State
+  const [accessKeys, setAccessKeys] = useState([]);
+  const [isGeneratingKeys, setIsGeneratingKeys] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
+  const [copiedAllKeys, setCopiedAllKeys] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAccessKeys().then(setAccessKeys);
+    }
+  }, [isAuthenticated]);
 
   // Project Form State
   const [editingProject, setEditingProject] = useState(null);
@@ -97,13 +115,14 @@ export default function AdminPage({
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const correctCode = import.meta.env.VITE_ADMIN_PASSCODE || 'gema2026';
-    if (passcode === correctCode || passcode === 'admin' || passcode === 'gema2026') {
+    const correctCode = import.meta.env.VITE_ADMIN_PASSCODE;
+    const isMatch = correctCode ? passcode === correctCode : (passcode === 'gema2026');
+    if (isMatch) {
       setIsAuthenticated(true);
       sessionStorage.setItem('gema_admin_auth', 'true');
       setErrorMsg('');
     } else {
-      setErrorMsg('Kata sandi admin tidak sesuai. Coba "gema2026".');
+      setErrorMsg('Kode sandi tidak valid. Silakan periksa kembali.');
     }
   };
 
@@ -352,7 +371,7 @@ export default function AdminPage({
               <input
                 type="password"
                 className="form-input-text"
-                placeholder="Kata sandi (default: gema2026)"
+                placeholder="Masukkan kode sandi admin..."
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 autoFocus
@@ -400,6 +419,14 @@ export default function AdminPage({
               >
                 <FileSpreadsheet size={15} />
                 <span>Impor Spreadsheet & Drive</span>
+              </button>
+              <button
+                className={`admin-tab-btn ${activeTab === 'KEYS' ? 'active' : ''}`}
+                onClick={() => setActiveTab('KEYS')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <Key size={15} />
+                <span>Kunci Akses Siswa ({accessKeys.filter(k => !k.isUsed).length})</span>
               </button>
               <button
                 className={`admin-tab-btn ${activeTab === 'SETTINGS' ? 'active' : ''}`}
@@ -1122,7 +1149,243 @@ export default function AdminPage({
               </div>
             )}
 
-            {/* TAB 5: SETTINGS & SUPABASE / VERCEL */}
+            {/* TAB 5: ACCESS KEYS FOR STUDENTS */}
+            {activeTab === 'KEYS' && (
+              <div>
+                <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24, marginBottom: 24 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <Key size={20} color="var(--accent-terracotta)" />
+                        <h3 style={{ fontSize: 18, fontWeight: 600 }}>Generator Kunci Akses Siswa (Single-Use Keys)</h3>
+                      </div>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 640, lineHeight: 1.5, margin: 0 }}>
+                        Setiap kunci terdiri dari <strong>6 digit angka acak</strong> dan hanya berlaku untuk <strong>satu kali penggunaan</strong>. Berikan kunci ini kepada siswa yang perlu mengunggah atau mengedit karya kelompok mereka di portal siswa saat acara pameran live.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <button
+                        className="submit-comment-btn"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38 }}
+                        disabled={isGeneratingKeys}
+                        onClick={async () => {
+                          setIsGeneratingKeys(true);
+                          try {
+                            const updated = await generateAccessKeys(10);
+                            setAccessKeys(updated);
+                          } catch (err) {
+                            alert('Gagal membuat kunci: ' + err.message);
+                          } finally {
+                            setIsGeneratingKeys(false);
+                          }
+                        }}
+                      >
+                        <RefreshCw size={15} className={isGeneratingKeys ? 'spin' : ''} />
+                        <span>{isGeneratingKeys ? 'Membuat...' : 'Buat 10 Kunci Baru'}</span>
+                      </button>
+
+                      <button
+                        className="admin-badge-btn"
+                        style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        onClick={() => {
+                          const active = accessKeys.filter(k => !k.isUsed).map(k => k.key);
+                          if (active.length === 0) {
+                            alert('Tidak ada kunci aktif untuk disalin.');
+                            return;
+                          }
+                          navigator.clipboard.writeText(active.join('\n'));
+                          setCopiedAllKeys(true);
+                          setTimeout(() => setCopiedAllKeys(false), 2500);
+                        }}
+                      >
+                        <Copy size={15} />
+                        <span>{copiedAllKeys ? 'Tersalin!' : 'Salin Semua Kunci Aktif'}</span>
+                      </button>
+
+                      {accessKeys.some(k => k.isUsed) && (
+                        <button
+                          className="admin-badge-btn"
+                          style={{ height: 38, color: '#dc3545', borderColor: '#dc3545' }}
+                          onClick={async () => {
+                            if (confirm('Hapus seluruh riwayat kunci yang sudah terpakai?')) {
+                              const updated = await clearUsedAccessKeys();
+                              setAccessKeys(updated);
+                            }
+                          }}
+                        >
+                          <Trash2 size={15} />
+                          <span>Bersihkan Kunci Terpakai</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats Counter */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 20 }}>
+                    <div style={{ background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Kunci Dibuat</div>
+                      <div style={{ fontSize: 24, fontWeight: 600, marginTop: 4 }}>{accessKeys.length}</div>
+                    </div>
+                    <div style={{ background: 'rgba(40, 167, 69, 0.08)', padding: '12px 16px', borderRadius: 4, border: '1px solid rgba(40, 167, 69, 0.2)' }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#28a745', fontWeight: 600 }}>Kunci Aktif (Siap Pakai)</div>
+                      <div style={{ fontSize: 24, fontWeight: 600, color: '#28a745', marginTop: 4 }}>
+                        {accessKeys.filter(k => !k.isUsed).length}
+                      </div>
+                    </div>
+                    <div style={{ background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: 4, border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Kunci Sudah Digunakan</div>
+                      <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 4 }}>
+                        {accessKeys.filter(k => k.isUsed).length}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Keys List */}
+                <div style={{ marginBottom: 28 }}>
+                  <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Kunci Aktif (Belum Digunakan)</span>
+                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-secondary)' }}>
+                      — Berikan satu kode kepada perwakilan kelompok siswa
+                    </span>
+                  </h4>
+
+                  {accessKeys.filter(k => !k.isUsed).length === 0 ? (
+                    <div style={{ background: '#fff', border: '1px dashed var(--border-medium)', borderRadius: 4, padding: 32, textAlign: 'center' }}>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 12 }}>
+                        Belum ada kunci akses aktif.
+                      </div>
+                      <button
+                        className="submit-comment-btn"
+                        onClick={async () => {
+                          setIsGeneratingKeys(true);
+                          const updated = await generateAccessKeys(10);
+                          setAccessKeys(updated);
+                          setIsGeneratingKeys(false);
+                        }}
+                      >
+                        Buat 10 Kunci Akses Baru Sekarang
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                      {accessKeys.filter(k => !k.isUsed).map((k) => (
+                        <div
+                          key={k.key}
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: 4,
+                            padding: '14px 16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            boxShadow: 'var(--shadow-sm)'
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 22, fontWeight: 700, letterSpacing: 2, color: 'var(--text-primary)' }}>
+                              {k.key}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                              Dibuat: {k.createdAt || 'Hari ini'}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              className="admin-badge-btn"
+                              style={{ padding: '6px 10px', fontSize: 12 }}
+                              title="Salin Kunci"
+                              onClick={() => {
+                                navigator.clipboard.writeText(k.key);
+                                setCopiedKey(k.key);
+                                setTimeout(() => setCopiedKey(null), 2000);
+                              }}
+                            >
+                              <Copy size={13} />
+                              <span>{copiedKey === k.key ? 'Tersalin' : 'Salin'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="admin-badge-btn"
+                              style={{ padding: '6px 8px', color: '#dc3545', borderColor: '#f5c6cb' }}
+                              title="Hapus Kunci"
+                              onClick={async () => {
+                                const updated = await deleteAccessKey(k.key);
+                                setAccessKeys(updated);
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Used Keys History */}
+                {accessKeys.some(k => k.isUsed) && (
+                  <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 20 }}>
+                    <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+                      Riwayat Kunci yang Sudah Digunakan (Hangus)
+                    </h4>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-medium)', textAlign: 'left', background: 'var(--bg-subtle)' }}>
+                            <th style={{ padding: '8px 12px' }}>Kode Kunci</th>
+                            <th style={{ padding: '8px 12px' }}>Status</th>
+                            <th style={{ padding: '8px 12px' }}>Digunakan Pada</th>
+                            <th style={{ padding: '8px 12px' }}>Keterangan Penggunaan</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'right' }}>Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {accessKeys.filter(k => k.isUsed).map((k) => (
+                            <tr key={k.key} style={{ borderBottom: '1px solid var(--border-subtle)', opacity: 0.8 }}>
+                              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 600, textDecoration: 'line-through' }}>
+                                {k.key}
+                              </td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <span style={{ background: '#eee', padding: '2px 8px', borderRadius: 2, fontSize: 11, fontWeight: 500 }}>
+                                  Sudah Terpakai
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontSize: 12 }}>
+                                {k.usedAt || '-'}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>
+                                {k.usedFor || '-'}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                                <button
+                                  type="button"
+                                  className="admin-badge-btn"
+                                  style={{ padding: '4px 8px', color: '#dc3545' }}
+                                  onClick={async () => {
+                                    const updated = await deleteAccessKey(k.key);
+                                    setAccessKeys(updated);
+                                  }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 6: SETTINGS & SUPABASE / VERCEL */}
             {activeTab === 'SETTINGS' && (
               <div>
                 <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24, marginBottom: 20 }}>
@@ -1147,7 +1410,7 @@ export default function AdminPage({
                   <div style={{ background: 'var(--bg-subtle)', padding: 14, borderRadius: 2, fontFamily: 'monospace', fontSize: 12 }}>
                     <div>VITE_SUPABASE_URL=https://proyek-anda.supabase.co</div>
                     <div>VITE_SUPABASE_ANON_KEY=eyJh...anon-key-anda</div>
-                    <div>VITE_ADMIN_PASSCODE=gema2026</div>
+                    <div>VITE_ADMIN_PASSCODE=••••••••</div>
                   </div>
 
                   <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
@@ -1164,19 +1427,42 @@ export default function AdminPage({
                   </div>
                 </div>
 
-                {/* Reset Demo Data */}
-                <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                    Reset Data Demo
+                {/* Clear Database & Demo Data */}
+                <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#dc3545' }}>
+                    Bersihkan Seluruh Karya &amp; Data Demo
                   </h3>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                    Kembalikan seluruh daftar kelas dan karya ke 6 kelas default pameran SMAS Kristen Harapan.
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                    Menghapus seluruh karya mock/demo dan komentar agar database Supabase kosong dan bersih, siap untuk karya siswa yang sesungguhnya. Daftar kelas Anda tetap aman dan tidak terhapus.
                   </p>
                   <button
                     className="admin-badge-btn"
-                    style={{ color: '#e0245e', borderColor: '#e0245e' }}
+                    style={{ color: '#dc3545', borderColor: '#dc3545', fontWeight: 600 }}
+                    onClick={async () => {
+                      if (confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan seluruh karya & komentar dari database? Tindakan ini tidak dapat dibatalkan.')) {
+                        await clearAllDatabaseAndDemoData();
+                        alert('Database telah dikosongkan.');
+                        window.location.reload();
+                      }
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    <span>Kosongkan Seluruh Karya &amp; Komentar</span>
+                  </button>
+                </div>
+
+                {/* Reset Demo Data (Optional) */}
+                <div style={{ background: '#ffffff', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: 24 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                    Kembalikan ke Contoh Data Demo Awal
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                    Isi kembali galeri dengan 3 karya contoh pameran Desa Adat Penglipuran untuk keperluan uji coba tampilan.
+                  </p>
+                  <button
+                    className="admin-badge-btn"
                     onClick={() => {
-                      if (confirm('Apakah Anda yakin ingin mereset seluruh data kembali ke data demo awal?')) {
+                      if (confirm('Apakah Anda yakin ingin memuat kembali data contoh demo awal?')) {
                         resetToDemoData();
                         window.location.reload();
                       }

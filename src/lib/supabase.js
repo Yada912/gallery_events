@@ -29,12 +29,14 @@ const liveChannel = typeof window !== 'undefined' && window.BroadcastChannel
 const STORAGE_KEYS = {
   CLASSES: 'gema_belajar_classes_v1',
   PROJECTS: 'gema_belajar_projects_v1',
-  LIKED_PROJECTS: 'gema_belajar_user_likes_v1'
+  LIKED_PROJECTS: 'gema_belajar_user_likes_v1',
+  ACCESS_KEYS: 'gema_belajar_access_keys_v1'
 };
 
-// Initialize localStorage with initial data if empty
+// Initialize localStorage with initial data only when Supabase is NOT configured
 export function initLocalStore() {
   if (typeof window === 'undefined') return;
+  if (isSupabaseConfigured) return;
   if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) {
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(INITIAL_CLASSES));
   }
@@ -53,7 +55,7 @@ export async function fetchClasses() {
         .from('classes')
         .select('*')
         .order('display_order', { ascending: true });
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return data.map(item => ({
           id: item.id,
           name: item.name,
@@ -135,7 +137,7 @@ export async function fetchProjects() {
           comments (*)
         `)
         .order('display_order', { ascending: true });
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return data.map(item => ({
           id: item.id,
           classId: item.class_id,
@@ -578,5 +580,175 @@ export async function batchImportProjects(newProjectsList) {
   liveChannel?.postMessage({ type: 'BATCH_IMPORTED' });
 
   return { projects: updatedProjects, classes: updatedClasses };
+}
+
+// ---------------------------------------------------------
+// Access Keys API (Single-use 6-digit keys for student edits)
+// ---------------------------------------------------------
+export async function fetchAccessKeys() {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('access_keys')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        return data.map(k => ({
+          key: k.key,
+          isUsed: k.is_used,
+          usedAt: k.used_at ? new Date(k.used_at).toLocaleString('id-ID') : null,
+          usedFor: k.used_for || '',
+          createdAt: new Date(k.created_at).toLocaleString('id-ID')
+        }));
+      }
+    } catch (err) {
+      // Table might not exist yet in Supabase, fallback smoothly to local
+    }
+  }
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.ACCESS_KEYS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function generateAccessKeys(count = 10) {
+  const current = await fetchAccessKeys();
+  const existingSet = new Set(current.map(k => k.key));
+  const newKeys = [];
+
+  for (let i = 0; i < count; i++) {
+    let candidate = '';
+    do {
+      candidate = String(Math.floor(100000 + Math.random() * 900000));
+    } while (existingSet.has(candidate));
+    
+    existingSet.add(candidate);
+    newKeys.push({
+      key: candidate,
+      isUsed: false,
+      usedAt: null,
+      usedFor: '',
+      createdAt: new Date().toLocaleString('id-ID')
+    });
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      const dbPayload = newKeys.map(k => ({
+        key: k.key,
+        is_used: false,
+        used_at: null,
+        used_for: ''
+      }));
+      await supabase.from('access_keys').insert(dbPayload);
+    } catch (err) {
+      console.warn('Could not save access_keys to Supabase (table may need creating in SQL editor):', err);
+    }
+  }
+
+  const combined = [...newKeys, ...current];
+  localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(combined));
+  liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+  return combined;
+}
+
+export async function validateAndConsumeAccessKey(inputKey, usedFor = '') {
+  const cleanKey = String(inputKey || '').trim();
+  if (!cleanKey || cleanKey.length !== 6 || !/^\d{6}$/.test(cleanKey)) {
+    return { valid: false, message: 'Kunci akses harus berupa 6 digit angka.' };
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('access_keys')
+        .select('*')
+        .eq('key', cleanKey)
+        .maybeSingle();
+
+      if (!error && data) {
+        if (data.is_used) {
+          return { valid: false, message: 'Kunci akses ini sudah pernah digunakan. Minta kunci baru ke panitia.' };
+        }
+        // Consume key in Supabase
+        await supabase
+          .from('access_keys')
+          .update({
+            is_used: true,
+            used_at: new Date().toISOString(),
+            used_for: usedFor
+          })
+          .eq('key', cleanKey);
+
+        // Also update local store
+        const current = await fetchAccessKeys();
+        const updated = current.map(k => k.key === cleanKey ? { ...k, isUsed: true, usedAt: new Date().toLocaleString('id-ID'), usedFor } : k);
+        localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(updated));
+        liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+        return { valid: true, key: cleanKey };
+      }
+    } catch (err) {
+      console.warn('Supabase key validation fallback:', err);
+    }
+  }
+
+  // Fallback to local
+  const current = await fetchAccessKeys();
+  const match = current.find(k => k.key === cleanKey);
+  if (!match) {
+    return { valid: false, message: 'Kunci akses tidak ditemukan. Periksa kembali 6 digit kode dari panitia.' };
+  }
+  if (match.isUsed) {
+    return { valid: false, message: 'Kunci akses ini sudah pernah digunakan. Minta kunci baru ke panitia.' };
+  }
+
+  const updated = current.map(k => k.key === cleanKey ? { ...k, isUsed: true, usedAt: new Date().toLocaleString('id-ID'), usedFor } : k);
+  localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(updated));
+  liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+  return { valid: true, key: cleanKey };
+}
+
+export async function deleteAccessKey(key) {
+  if (isSupabaseConfigured) {
+    try {
+      await supabase.from('access_keys').delete().eq('key', key);
+    } catch {}
+  }
+  const current = await fetchAccessKeys();
+  const updated = current.filter(k => k.key !== key);
+  localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(updated));
+  liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+  return updated;
+}
+
+export async function clearUsedAccessKeys() {
+  if (isSupabaseConfigured) {
+    try {
+      await supabase.from('access_keys').delete().eq('is_used', true);
+    } catch {}
+  }
+  const current = await fetchAccessKeys();
+  const updated = current.filter(k => !k.isUsed);
+  localStorage.setItem(STORAGE_KEYS.ACCESS_KEYS, JSON.stringify(updated));
+  liveChannel?.postMessage({ type: 'ACCESS_KEYS_UPDATED' });
+  return updated;
+}
+
+// Clear all demo/mock data and empty database projects/comments
+export async function clearAllDatabaseAndDemoData() {
+  if (isSupabaseConfigured) {
+    try {
+      await supabase.from('comments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('projects').delete().neq('id', '__none__');
+    } catch (err) {
+      console.error('Supabase clear projects error:', err);
+    }
+  }
+  localStorage.removeItem(STORAGE_KEYS.PROJECTS);
+  localStorage.removeItem(STORAGE_KEYS.LIKED_PROJECTS);
+  liveChannel?.postMessage({ type: 'PROJECTS_UPDATED' });
 }
 
