@@ -278,9 +278,76 @@ export async function toggleLikeProject(projectId) {
   return { liked: newLikedState, count: newCount };
 }
 
+// Admin directly sets exact likes count
+export async function setProjectLikesDirectly(projectId, count) {
+  initLocalStore();
+  const safeCount = Math.max(0, parseInt(count, 10) || 0);
+  const projects = await fetchProjects();
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return safeCount;
+
+  project.likesCount = safeCount;
+
+  if (isSupabaseConfigured) {
+    try {
+      await supabase
+        .from('projects')
+        .update({ likes_count: safeCount })
+        .eq('id', projectId);
+    } catch (err) {
+      console.error('Supabase setLikes error:', err);
+    }
+  }
+
+  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+  liveChannel?.postMessage({ type: 'LIKE_UPDATED', projectId, count: safeCount });
+  return safeCount;
+}
+
 // ---------------------------------------------------------
-// Real-time Comments API
+// Real-time Comments API & Editing
 // ---------------------------------------------------------
+export async function updateCommentInProject(projectId, commentId, updatedFields) {
+  if (isSupabaseConfigured) {
+    try {
+      const dbFields = {};
+      if (updatedFields.authorName !== undefined) dbFields.author_name = updatedFields.authorName;
+      if (updatedFields.content !== undefined) dbFields.content = updatedFields.content;
+      if (updatedFields.isCreator !== undefined) dbFields.is_creator = updatedFields.isCreator;
+
+      await supabase
+        .from('comments')
+        .update(dbFields)
+        .eq('id', commentId);
+    } catch (err) {
+      console.error('Supabase updateComment error:', err);
+    }
+  }
+
+  initLocalStore();
+  const projects = await fetchProjects();
+  const project = projects.find(p => p.id === projectId);
+  if (project && project.comments) {
+    project.comments = project.comments.map(c => {
+      if (c.id === commentId) {
+        return { ...c, ...updatedFields };
+      }
+      if (c.replies) {
+        c.replies = c.replies.map(r => r.id === commentId ? { ...r, ...updatedFields } : r);
+      }
+      return c;
+    });
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+  }
+
+  liveChannel?.postMessage({
+    type: 'COMMENT_UPDATED',
+    projectId,
+    commentId,
+    updatedFields
+  });
+}
+
 export async function addCommentToProject(projectId, { authorName, content, isCreator = false, parentId = null }) {
   const newComment = {
     id: `c-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -411,3 +478,105 @@ export function resetToDemoData() {
   localStorage.removeItem(STORAGE_KEYS.LIKED_PROJECTS);
   liveChannel?.postMessage({ type: 'RESET_DONE' });
 }
+
+// ---------------------------------------------------------
+// Google Drive Link Converter & Batch Import Helper
+// ---------------------------------------------------------
+export function convertGoogleDriveUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
+
+  // If already a direct image or local path, return as is
+  if (trimmed.startsWith('/artworks/') || trimmed.startsWith('data:image')) {
+    return trimmed;
+  }
+
+  // Pattern 1: https://drive.google.com/file/d/FILE_ID/...
+  const matchFileD = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (matchFileD && matchFileD[1]) {
+    return `https://lh3.googleusercontent.com/d/${matchFileD[1]}`;
+  }
+
+  // Pattern 2: id=FILE_ID
+  const matchId = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (matchId && matchId[1]) {
+    return `https://lh3.googleusercontent.com/d/${matchId[1]}`;
+  }
+
+  // Pattern 3: https://drive.google.com/open?id=FILE_ID
+  const matchOpen = trimmed.match(/open\?id=([a-zA-Z0-9_-]+)/);
+  if (matchOpen && matchOpen[1]) {
+    return `https://lh3.googleusercontent.com/d/${matchOpen[1]}`;
+  }
+
+  return trimmed;
+}
+
+// Batch import multiple projects (e.g. from Spreadsheet / CSV / TSV)
+export async function batchImportProjects(newProjectsList) {
+  initLocalStore();
+  const currentProjects = await fetchProjects();
+  const currentClasses = await fetchClasses();
+
+  const updatedProjects = [...currentProjects];
+  const updatedClasses = [...currentClasses];
+
+  for (const item of newProjectsList) {
+    if (!item.title) continue;
+
+    // Ensure class exists
+    let classId = item.classId;
+    if (!classId && item.className) {
+      classId = item.className.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+    if (!classId) classId = 'umum';
+
+    const existingClass = updatedClasses.find(c => c.id === classId || c.name.toLowerCase() === (item.className || '').toLowerCase());
+    if (!existingClass) {
+      const newClass = {
+        id: classId,
+        name: item.className || classId.toUpperCase(),
+        displayOrder: updatedClasses.length + 1,
+        description: `Kelas ${item.className || classId}`
+      };
+      updatedClasses.push(newClass);
+      await saveClass(newClass);
+    } else {
+      classId = existingClass.id;
+    }
+
+    const projectId = item.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const formattedPoster = convertGoogleDriveUrl(item.posterUrl || '/artworks/poster1.jpg');
+
+    const projectData = {
+      id: projectId,
+      classId,
+      pieceNumber: String(item.pieceNumber || (updatedProjects.filter(p => p.classId === classId).length + 1)).padStart(2, '0'),
+      title: item.title,
+      creators: item.creators || 'Siswa SMAS Harapan',
+      format: item.format || 'PNG',
+      posterUrl: formattedPoster,
+      gameUrl: item.gameUrl || '',
+      description: item.description || '',
+      likesCount: parseInt(item.likesCount, 10) || 0,
+      displayOrder: item.displayOrder || (updatedProjects.length + 1),
+      comments: []
+    };
+
+    const existingIdx = updatedProjects.findIndex(p => p.id === projectId);
+    if (existingIdx >= 0) {
+      updatedProjects[existingIdx] = { ...updatedProjects[existingIdx], ...projectData };
+    } else {
+      updatedProjects.push(projectData);
+    }
+
+    await saveProject(projectData);
+  }
+
+  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updatedProjects));
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(updatedClasses));
+  liveChannel?.postMessage({ type: 'BATCH_IMPORTED' });
+
+  return { projects: updatedProjects, classes: updatedClasses };
+}
+
