@@ -125,7 +125,10 @@ create index if not exists idx_access_keys_class on public.access_keys(class_id)
 -- --------------------------------------------------------
 -- Atomic Like Increment RPC Function (prevents race conditions)
 -- --------------------------------------------------------
-create or replace function public.increment_project_like(p_project_id text, p_delta integer)
+drop function if exists public.increment_project_like(text, integer);
+drop function if exists public.increment_project_like(text);
+
+create or replace function public.increment_project_like(p_project_id text, p_delta integer default 1)
 returns integer
 language plpgsql
 security definer
