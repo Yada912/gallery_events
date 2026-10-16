@@ -1238,6 +1238,19 @@ a {
   }
 }
 
+.admin-project-edit-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.35fr) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .admin-project-edit-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .status-indicator {
   display: inline-flex;
   align-items: center;

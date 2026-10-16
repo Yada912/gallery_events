@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Google Material Symbols Icon Components
 const Plus = ({ size = 18, className = '', style = {} }) => (
@@ -84,7 +84,8 @@ import {
   generateTokensForAllClasses,
   deleteAccessKey,
   clearUsedAccessKeys,
-  clearAllDatabaseAndDemoData
+  clearAllDatabaseAndDemoData,
+  compressImageToWebP
 } from '../lib/supabase';
 
 export default function AdminPage({
@@ -96,7 +97,8 @@ export default function AdminPage({
   onDeleteProject,
   onAddComment,
   onDeleteComment,
-  onNavigateHome
+  onNavigateHome,
+  onRefreshData
 }) {
   const [passcode, setPasscode] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -107,6 +109,12 @@ export default function AdminPage({
   const [activeTab, setActiveTab] = useState('PROJECTS'); // 'PROJECTS', 'CLASSES', 'COMMENTS', 'IMPORT', 'KEYS', 'SETTINGS'
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Refresh & Poster File Compression State
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState('');
+  const [isCompressingPoster, setIsCompressingPoster] = useState(false);
+  const posterFileInputRef = useRef(null);
 
   // Access Keys / Group Tokens State
   const [accessKeys, setAccessKeys] = useState([]);
@@ -126,6 +134,45 @@ export default function AdminPage({
   const [bulkGroupsText, setBulkGroupsText] = useState('');
   const [standaloneKeysCount, setStandaloneKeysCount] = useState(10);
   const [standaloneLabel, setStandaloneLabel] = useState('Kunci Standalone / Bebas (Susulan)');
+
+  const handleRefreshAll = async () => {
+    setIsRefreshing(true);
+    setRefreshNotice('');
+    try {
+      if (onRefreshData) {
+        await onRefreshData();
+      }
+      const keys = await fetchAccessKeys();
+      setAccessKeys(keys);
+      setRefreshNotice('Data pameran dan kunci akses berhasil disegarkan!');
+      setTimeout(() => setRefreshNotice(''), 4000);
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      setRefreshNotice('Gagal menyegarkan data: ' + (err.message || err));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handlePosterFileUpload = async (file) => {
+    if (!file || !file.type.startsWith('image/')) {
+      alert('Mohon pilih berkas gambar yang valid (PNG, JPEG, WebP).');
+      return;
+    }
+    setIsCompressingPoster(true);
+    try {
+      const webpDataUrl = await compressImageToWebP(file, 1100, 0.72);
+      setProjectForm(prev => ({
+        ...prev,
+        posterUrl: webpDataUrl,
+        format: 'WEBP'
+      }));
+    } catch (err) {
+      alert('Gagal mengompres gambar: ' + (err.message || err));
+    } finally {
+      setIsCompressingPoster(false);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -212,6 +259,10 @@ export default function AdminPage({
   };
 
   const startEditProject = (p) => {
+    if (editingProject === p.id) {
+      setEditingProject(null);
+      return;
+    }
     setEditingProject(p.id);
     setProjectForm({
       id: p.id,
@@ -219,8 +270,8 @@ export default function AdminPage({
       pieceNumber: p.pieceNumber,
       title: p.title,
       creators: p.creators,
-      format: p.format || 'PNG',
-      posterUrl: p.posterUrl,
+      format: p.format || 'WEBP',
+      posterUrl: p.posterUrl || '',
       gameUrl: p.gameUrl || '',
       description: p.description || '',
       likesCount: p.likesCount || 0
@@ -236,6 +287,454 @@ export default function AdminPage({
     };
     await onSaveProject(processedForm);
     setEditingProject(null);
+  };
+
+  const getPosterInfo = (url) => {
+    if (!url) return { type: 'NONE', label: 'Belum ada gambar', size: null, isWebP: false };
+    if (url.startsWith('data:image/webp')) {
+      const kb = Math.round(url.length * 0.75 / 1024);
+      return { type: 'BASE64_WEBP', label: `WebP (${kb} KB)`, size: kb, isWebP: true };
+    }
+    if (url.startsWith('data:')) {
+      const kb = Math.round(url.length * 0.75 / 1024);
+      return { type: 'BASE64_OTHER', label: `Base64 (${kb} KB)`, size: kb, isWebP: false };
+    }
+    if (url.startsWith('http')) {
+      return { type: 'URL', label: 'Tautan Eksternal / CDN', size: null, isWebP: false };
+    }
+    return { type: 'LOCAL', label: url, size: null, isWebP: false };
+  };
+
+  const renderProjectEditForm = (isNew, p) => {
+    const targetId = isNew ? projectForm.id : p?.id;
+    const matchedKey = accessKeys.find(k => k.usedByProjectId === targetId);
+    const posterInfo = getPosterInfo(projectForm.posterUrl);
+    const commentsCount = p?.comments?.length || 0;
+
+    return (
+      <form
+        onSubmit={handleSaveProjectSubmit}
+        style={{
+          background: '#ffffff',
+          border: '1.5px solid var(--accent-terracotta)',
+          borderRadius: 4,
+          padding: 24,
+          marginTop: isNew ? 0 : 16,
+          marginBottom: isNew ? 28 : 8,
+          boxShadow: 'var(--shadow-md)'
+        }}
+      >
+        {/* Header bar of form */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="material-symbols-outlined" style={{ color: 'var(--accent-terracotta)', fontSize: 22 }}>
+                {isNew ? 'add_circle' : 'edit_note'}
+              </span>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, margin: 0 }}>
+                {isNew ? 'Tambah Karya Baru' : `Edit Karya: ${projectForm.title || p?.title}`}
+              </h3>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+              {isNew ? 'Formulir pembuatan entri karya pameran baru' : `Mengedit data langsung untuk karya ID: ${targetId}`}
+            </div>
+          </div>
+
+          <button 
+            type="button" 
+            onClick={() => setEditingProject(null)}
+            style={{ 
+              fontSize: 13, 
+              cursor: 'pointer', 
+              padding: '4px 12px',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 2,
+              background: 'var(--bg-subtle)',
+              color: 'var(--text-secondary)'
+            }}
+          >
+            Tutup
+          </button>
+        </div>
+
+        {/* 2-Column Responsive Layout */}
+        <div className="admin-project-edit-layout">
+          {/* Left Column: Form Inputs */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Row 1: Kelas & Nomor Karya */}
+            <div className="admin-form-grid" style={{ marginBottom: 0 }}>
+              <div>
+                <label className="field-label">Pilih Kelas</label>
+                <select
+                  className="form-input-text"
+                  style={{ width: '100%', marginTop: 4 }}
+                  value={projectForm.classId}
+                  onChange={(e) => setProjectForm({ ...projectForm, classId: e.target.value })}
+                  required
+                >
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="field-label">Nomor Karya (misal: 01, 02)</label>
+                <input
+                  type="text"
+                  className="form-input-text"
+                  style={{ width: '100%', marginTop: 4 }}
+                  value={projectForm.pieceNumber}
+                  onChange={(e) => setProjectForm({ ...projectForm, pieceNumber: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Judul Karya & Pembuat */}
+            <div className="admin-form-grid" style={{ marginBottom: 0 }}>
+              <div>
+                <label className="field-label">Judul Karya</label>
+                <input
+                  type="text"
+                  className="form-input-text"
+                  style={{ width: '100%', marginTop: 4 }}
+                  placeholder="Contoh: Sang Hyang Dedari"
+                  value={projectForm.title}
+                  onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="field-label">Pembuat / Kelompok Siswa</label>
+                <input
+                  type="text"
+                  className="form-input-text"
+                  style={{ width: '100%', marginTop: 4 }}
+                  placeholder="Contoh: Alya Putri, I Gede Aditya"
+                  value={projectForm.creators}
+                  onChange={(e) => setProjectForm({ ...projectForm, creators: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Row 3: URL / Data Poster & Tombol Upload */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className="field-label">
+                  URL Poster / Data WebP
+                </label>
+                <button
+                  type="button"
+                  onClick={() => posterFileInputRef.current?.click()}
+                  disabled={isCompressingPoster}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    padding: '4px 10px',
+                    background: 'var(--accent-terracotta)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 2,
+                    cursor: isCompressingPoster ? 'wait' : 'pointer'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                    {isCompressingPoster ? 'sync' : 'upload'}
+                  </span>
+                  <span>{isCompressingPoster ? 'Mengompres...' : 'Pilih Berkas Gambar Baru'}</span>
+                </button>
+              </div>
+              <input
+                type="text"
+                className="form-input-text"
+                style={{ width: '100%', marginTop: 4, fontSize: 12, fontFamily: 'monospace' }}
+                placeholder="https://drive.google.com/file/d/... atau data:image/webp;base64,..."
+                value={projectForm.posterUrl.startsWith('data:') ? `[Data Gambar WebP Terkompresi: ${posterInfo.label}]` : projectForm.posterUrl}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val.startsWith('[Data Gambar')) {
+                    setProjectForm({ 
+                      ...projectForm, 
+                      posterUrl: convertGoogleDriveUrl(val) 
+                    });
+                  }
+                }}
+                required
+              />
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                Tip: Link Google Drive otomatis dikonversi ke gambar langsung, atau klik tombol <strong>"Pilih Berkas Gambar Baru"</strong> untuk mengompres gambar Anda ke format WebP otomatis.
+              </div>
+            </div>
+
+            {/* Row 4: Tautan Karya Eksternal & Format */}
+            <div className="admin-form-grid" style={{ marginBottom: 0 }}>
+              <div>
+                <label className="field-label">Tautan Karya Eksternal (URL Karya / Web / Drive)</label>
+                <input
+                  type="url"
+                  className="form-input-text"
+                  style={{ width: '100%', marginTop: 4 }}
+                  placeholder="https://... tautan game, website atau Canva"
+                  value={projectForm.gameUrl}
+                  onChange={(e) => setProjectForm({ ...projectForm, gameUrl: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="field-label">Format File</label>
+                <input
+                  type="text"
+                  className="form-input-text"
+                  style={{ width: '100%', marginTop: 4 }}
+                  value={projectForm.format}
+                  onChange={(e) => setProjectForm({ ...projectForm, format: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Row 5: Likes & Deskripsi */}
+            <div className="admin-form-grid" style={{ marginBottom: 0 }}>
+              <div>
+                <label className="field-label">Jumlah Suka (Likes Count)</label>
+                <input
+                  type="number"
+                  className="form-input-text"
+                  style={{ width: '100%', marginTop: 4 }}
+                  value={projectForm.likesCount}
+                  onChange={(e) => setProjectForm({ ...projectForm, likesCount: parseInt(e.target.value, 10) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="field-label">Deskripsi / Konteks Pembuatan Karya</label>
+              <textarea
+                className="form-input-text"
+                style={{ width: '100%', height: 75, marginTop: 4, padding: 10, fontSize: 13 }}
+                placeholder="Jelaskan gagasan atau pesan dari karya ini..."
+                value={projectForm.description}
+                onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button 
+                type="submit" 
+                className="submit-comment-btn" 
+                style={{ 
+                  padding: '10px 24px', 
+                  fontSize: 14, 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: 6 
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check</span>
+                <span>{isNew ? 'Simpan Karya Baru' : 'Simpan Perubahan'}</span>
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setEditingProject(null)}
+                style={{ 
+                  padding: '10px 18px', 
+                  fontSize: 13, 
+                  background: 'transparent',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: 2,
+                  cursor: 'pointer'
+                }}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Live Poster Preview, Token History & Key Metrics */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            
+            {/* 1. Live Poster Preview Box */}
+            <div style={{
+              background: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 4,
+              padding: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10, width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Preview Poster Karya</span>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: 10,
+                  background: posterInfo.isWebP ? 'rgba(5, 150, 105, 0.12)' : (posterInfo.type === 'URL' ? 'rgba(37, 99, 235, 0.12)' : 'rgba(0,0,0,0.06)'),
+                  color: posterInfo.isWebP ? '#059669' : (posterInfo.type === 'URL' ? '#2563eb' : 'var(--text-secondary)')
+                }}>
+                  {posterInfo.label}
+                </span>
+              </div>
+
+              <div style={{
+                width: '100%',
+                maxHeight: 240,
+                minHeight: 180,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#ffffff',
+                border: '1px dashed var(--border-medium)',
+                borderRadius: 3,
+                overflow: 'hidden',
+                position: 'relative'
+              }}>
+                {projectForm.posterUrl ? (
+                  <img 
+                    src={projectForm.posterUrl} 
+                    alt="Preview Poster"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: 230,
+                      objectFit: 'contain',
+                      borderRadius: 2
+                    }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = 'none';
+                      if (e.target.parentNode) {
+                        e.target.parentNode.innerHTML = '<div style="padding: 24px; color: #e0245e; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 28px; display: block; margin-bottom: 4px;">broken_image</span>Gagal memuat preview gambar.<br/>Periksa URL atau pilih berkas baru.</div>';
+                      }
+                    }}
+                  />
+                ) : (
+                  <div style={{ padding: 24, color: 'var(--text-muted)', fontSize: 12 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 32, display: 'block', marginBottom: 6, opacity: 0.5 }}>
+                      image
+                    </span>
+                    Belum ada poster gambar dipilih.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 10, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
+                <span>Resolusi otomatis diatur ke rasio optimal</span>
+                <button
+                  type="button"
+                  onClick={() => posterFileInputRef.current?.click()}
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--accent-terracotta)',
+                    textDecoration: 'underline',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                >
+                  Ganti Gambar
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Token History & Origin Info */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 4,
+              padding: 14
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--accent-terracotta)' }}>key</span>
+                <span>Riwayat Kunci Akses Siswa</span>
+              </div>
+
+              {matchedKey ? (
+                <div style={{ background: 'rgba(5, 150, 105, 0.05)', border: '1px solid rgba(5, 150, 105, 0.2)', borderRadius: 3, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 15, color: '#065f46', letterSpacing: '0.08em' }}>
+                      {matchedKey.keyCode}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 8, background: '#059669', color: '#ffffff' }}>
+                      Terpakai
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    Kelompok: <strong>{matchedKey.groupName || 'Tanpa Nama'}</strong>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Digunakan: {matchedKey.usedAt ? new Date(matchedKey.usedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Tercatat di sistem'}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: 'var(--bg-subtle)', borderRadius: 3, padding: '10px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-primary)', fontWeight: 500, marginBottom: 2 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>admin_panel_settings</span>
+                    <span>Dibuat Manual / Impor Admin</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Karya ini dimasukkan langsung melalui panel pengelola atau spreadsheet tanpa menggunakan kunci token siswa.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Key Metrics & Diagnostics */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 4,
+              padding: 14
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>analytics</span>
+                <span>Metrik & Status Karya</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ background: 'var(--bg-subtle)', padding: '8px 10px', borderRadius: 2 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>ID Sistem</div>
+                  <div style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={targetId}>
+                    {targetId || '-'}
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-subtle)', padding: '8px 10px', borderRadius: 2 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Komentar Masuk</div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>
+                    {commentsCount} Komentar
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-subtle)', padding: '8px 10px', borderRadius: 2 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Jumlah Suka</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#e0245e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                    <span>{projectForm.likesCount} suka</span>
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-subtle)', padding: '8px 10px', borderRadius: 2 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Tautan Eksternal</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: projectForm.gameUrl ? '#059669' : 'var(--text-muted)' }}>
+                    {projectForm.gameUrl ? '✓ Terpasang' : 'Belum Ada'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </form>
+    );
   };
 
   // Direct Likes Modification
@@ -393,10 +892,42 @@ export default function AdminPage({
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className={`status-indicator ${isSupabaseConfigured ? 'status-online' : 'status-offline'}`}>
               {isSupabaseConfigured ? '● Supabase Terhubung' : '● Mode Lokal Aktif'}
             </span>
+
+            {/* In-place Refresh Button */}
+            <button
+              type="button"
+              onClick={handleRefreshAll}
+              disabled={isRefreshing}
+              title="Segarkan data dari Supabase tanpa memuat ulang seluruh halaman"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                fontWeight: 500,
+                padding: '6px 14px',
+                border: '1px solid var(--border-medium)',
+                background: isRefreshing ? 'var(--bg-subtle)' : '#ffffff',
+                borderRadius: 2,
+                cursor: isRefreshing ? 'wait' : 'pointer'
+              }}
+            >
+              <span 
+                className="material-symbols-outlined" 
+                style={{ 
+                  fontSize: 16, 
+                  display: 'inline-block',
+                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none' 
+                }}
+              >
+                refresh
+              </span>
+              <span>{isRefreshing ? 'Menyegarkan...' : 'Segarkan Data'}</span>
+            </button>
 
             <button
               onClick={onNavigateHome}
@@ -418,6 +949,50 @@ export default function AdminPage({
           </div>
         </div>
       </header>
+
+      {/* Dynamic Keyframes for smooth spin */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+
+      {/* Refresh Success / Error Banner */}
+      {refreshNotice && (
+        <div style={{
+          background: refreshNotice.includes('Gagal') ? 'rgba(224, 36, 94, 0.08)' : 'rgba(5, 150, 105, 0.08)',
+          borderBottom: refreshNotice.includes('Gagal') ? '1px solid rgba(224, 36, 94, 0.2)' : '1px solid rgba(5, 150, 105, 0.2)',
+          color: refreshNotice.includes('Gagal') ? '#e0245e' : '#059669',
+          fontSize: 13,
+          fontWeight: 500,
+          padding: '10px 24px',
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8
+        }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            {refreshNotice.includes('Gagal') ? 'error' : 'check_circle'}
+          </span>
+          <span>{refreshNotice}</span>
+        </div>
+      )}
+
+      {/* Hidden File Input for Poster WebP Compression */}
+      <input
+        type="file"
+        ref={posterFileInputRef}
+        style={{ display: 'none' }}
+        accept="image/*"
+        onChange={(e) => {
+          if (e.target.files?.[0]) {
+            handlePosterFileUpload(e.target.files[0]);
+            e.target.value = '';
+          }
+        }}
+      />
 
       {/* Main Container */}
       <main className="container" style={{ padding: '32px 0 80px' }}>
@@ -540,280 +1115,180 @@ export default function AdminPage({
                   </button>
                 </div>
 
-                {/* Project Add/Edit Form */}
-                {editingProject && (
-                  <form 
-                    onSubmit={handleSaveProjectSubmit}
-                    style={{
-                      background: '#ffffff',
-                      border: '1px solid var(--border-medium)',
-                      borderRadius: 4,
-                      padding: 24,
-                      marginBottom: 32,
-                      boxShadow: 'var(--shadow-sm)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12 }}>
-                      <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20 }}>
-                        {editingProject === 'NEW' ? 'Tambah Karya Baru' : `Edit Karya: ${projectForm.title}`}
-                      </h3>
-                      <button 
-                        type="button" 
-                        onClick={() => setEditingProject(null)}
-                        style={{ fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
-                      >
-                        Batal
-                      </button>
-                    </div>
-
-                    <div className="admin-form-grid">
-                      <div>
-                        <label className="field-label">Pilih Kelas</label>
-                        <select
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          value={projectForm.classId}
-                          onChange={(e) => setProjectForm({ ...projectForm, classId: e.target.value })}
-                          required
-                        >
-                          {classes.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="field-label">Nomor Karya (misal: 01, 02)</label>
-                        <input
-                          type="text"
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          value={projectForm.pieceNumber}
-                          onChange={(e) => setProjectForm({ ...projectForm, pieceNumber: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="admin-form-grid">
-                      <div>
-                        <label className="field-label">Judul Karya</label>
-                        <input
-                          type="text"
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          placeholder="Contoh: Tanpa Judul 01"
-                          value={projectForm.title}
-                          onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="field-label">Pembuat / Kelompok Siswa</label>
-                        <input
-                          type="text"
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          placeholder="Contoh: Alya Putri, I Gede Aditya"
-                          value={projectForm.creators}
-                          onChange={(e) => setProjectForm({ ...projectForm, creators: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="admin-form-grid">
-                      <div>
-                        <label className="field-label">
-                          URL Poster Karya (Dapat berupa link Google Drive)
-                        </label>
-                        <input
-                          type="text"
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          placeholder="https://drive.google.com/file/d/... atau /artworks/poster1.jpg"
-                          value={projectForm.posterUrl}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setProjectForm({ 
-                              ...projectForm, 
-                              posterUrl: convertGoogleDriveUrl(val) 
-                            });
-                          }}
-                          required
-                        />
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                          Link Google Drive otomatis dikonversi ke gambar langsung.
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="field-label">Tautan Karya Eksternal (URL Karya)</label>
-                        <input
-                          type="url"
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          placeholder="https://... tautan website, proyek interaktif, atau Google Drive karya"
-                          value={projectForm.gameUrl}
-                          onChange={(e) => setProjectForm({ ...projectForm, gameUrl: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="admin-form-grid">
-                      <div>
-                        <label className="field-label">Jumlah Suka (Likes Count)</label>
-                        <input
-                          type="number"
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          value={projectForm.likesCount}
-                          onChange={(e) => setProjectForm({ ...projectForm, likesCount: parseInt(e.target.value, 10) || 0 })}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="field-label">Format File</label>
-                        <input
-                          type="text"
-                          className="form-input-text"
-                          style={{ width: '100%', marginTop: 4 }}
-                          value={projectForm.format}
-                          onChange={(e) => setProjectForm({ ...projectForm, format: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: 20 }}>
-                      <label className="field-label">Deskripsi / Konteks Pembuatan Karya</label>
-                      <textarea
-                        className="form-input-text"
-                        style={{ width: '100%', height: 70, marginTop: 4, padding: 10 }}
-                        value={projectForm.description}
-                        onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
-                      />
-                    </div>
-
-                    <button type="submit" className="submit-comment-btn" style={{ padding: '10px 28px', fontSize: 14 }}>
-                      Simpan Karya
-                    </button>
-                  </form>
-                )}
+                {/* Project Add Form (Only shown when adding a NEW project at top) */}
+                {editingProject === 'NEW' && renderProjectEditForm(true, null)}
 
                 {/* Projects List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {filteredProjects.map((p) => {
                     const cls = classes.find(c => c.id === p.classId);
                     const isEditingThisLike = editingLikesId === p.id;
+                    const isEditingThisProject = editingProject === p.id;
+                    const hasTokenKey = accessKeys.some(k => k.usedByProjectId === p.id);
 
                     return (
-                      <div key={p.id} className="admin-item-card">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-                          <img 
-                            src={p.posterUrl} 
-                            alt={p.title}
-                            loading="lazy"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.style.opacity = '0.3';
-                            }}
-                            style={{ 
-                              width: 52, 
-                              height: 70, 
-                              objectFit: 'cover', 
-                              borderRadius: 2, 
-                              border: '1px solid var(--border-subtle)',
-                              backgroundColor: '#eee' 
-                            }}
-                          />
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: 16 }}>
-                              {p.pieceNumber}. {p.title}
+                      <div 
+                        key={p.id} 
+                        className="admin-item-card"
+                        style={{
+                          flexDirection: 'column',
+                          alignItems: 'stretch',
+                          border: isEditingThisProject ? '1.5px solid var(--accent-terracotta)' : '1px solid var(--border-subtle)',
+                          background: isEditingThisProject ? 'rgba(194, 65, 12, 0.02)' : '#ffffff',
+                          boxShadow: isEditingThisProject ? 'var(--shadow-sm)' : 'none',
+                          transition: 'all 0.2s ease-in-out',
+                          padding: '16px 20px'
+                        }}
+                      >
+                        {/* Summary Row */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                            <img 
+                              src={p.posterUrl} 
+                              alt={p.title}
+                              loading="lazy"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.opacity = '0.3';
+                              }}
+                              style={{ 
+                                width: 52, 
+                                height: 70, 
+                                objectFit: 'cover', 
+                                borderRadius: 2, 
+                                border: '1px solid var(--border-subtle)',
+                                backgroundColor: '#eee' 
+                              }}
+                            />
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 16 }}>
+                                {p.pieceNumber}. {p.title}
+                              </div>
+                              <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                Kelas: <strong>{cls?.name || p.classId}</strong> &middot; Oleh: {p.creators}
+                              </div>
+                              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                {p.gameUrl ? (
+                                  <a 
+                                    href={p.gameUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    style={{ color: '#059669', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                                  >
+                                    <span>Tautan Karya Aktif</span>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_new</span>
+                                  </a>
+                                ) : (
+                                  <span>Belum ada tautan karya</span>
+                                )}
+                                <span>&middot;</span>
+                                <span>{(p.comments || []).length} Komentar</span>
+                                {hasTokenKey && (
+                                  <>
+                                    <span>&middot;</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, color: '#059669', fontSize: 11, background: 'rgba(5, 150, 105, 0.08)', padding: '1px 6px', borderRadius: 4 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>key</span>
+                                      <span>Via Token</span>
+                                    </span>
+                                  </>
+                                )}
+                                {p.posterUrl?.startsWith('data:image/webp') && (
+                                  <>
+                                    <span>&middot;</span>
+                                    <span style={{ color: '#2563eb', fontSize: 11, background: 'rgba(37, 99, 235, 0.08)', padding: '1px 6px', borderRadius: 4 }}>
+                                      WebP
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-                              Kelas: <strong>{cls?.name || p.classId}</strong> &middot; Oleh: {p.creators}
-                            </div>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                              {p.gameUrl ? (
-                                <a 
-                                  href={p.gameUrl} 
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  style={{ color: '#059669', textDecoration: 'underline' }}
-                                >
-                                  Tautan Karya Aktif &rarr;
-                                </a>
+                          </div>
+
+                          {/* Direct Likes Editor & Actions */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            {/* Direct Likes Modifier */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-subtle)', padding: '4px 10px', borderRadius: 2 }}>
+                              <Heart size={14} color="#e0245e" fill="#e0245e" />
+                              {isEditingThisLike ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <input
+                                    type="number"
+                                    value={likesInputVal}
+                                    onChange={(e) => setLikesInputVal(e.target.value)}
+                                    style={{ width: 60, height: 26, fontSize: 12, padding: '0 4px', border: '1px solid var(--border-medium)' }}
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleSaveDirectLikes(p.id)}
+                                    style={{ padding: '2px 6px', background: 'var(--text-primary)', color: '#fff', fontSize: 11, borderRadius: 2 }}
+                                  >
+                                    OK
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingLikesId(null)}
+                                    style={{ fontSize: 11, textDecoration: 'underline' }}
+                                  >
+                                    X
+                                  </button>
+                                </div>
                               ) : (
-                                <span>Belum ada tautan karya</span>
+                                <div 
+                                  style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                                  onClick={() => {
+                                    setEditingLikesId(p.id);
+                                    setLikesInputVal(p.likesCount || 0);
+                                  }}
+                                  title="Klik untuk mengubah jumlah suka secara manual"
+                                >
+                                  <span style={{ fontSize: 13, fontWeight: 600 }}>{p.likesCount || 0}</span>
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'underline' }}>Ubah</span>
+                                </div>
                               )}
-                              &nbsp;&middot;&nbsp;{(p.comments || []).length} Komentar
                             </div>
+
+                            <button
+                              style={{ 
+                                padding: '6px 12px', 
+                                border: isEditingThisProject ? '1px solid var(--accent-terracotta)' : '1px solid var(--border-medium)', 
+                                borderRadius: 2,
+                                background: isEditingThisProject ? 'var(--accent-terracotta)' : '#ffffff',
+                                color: isEditingThisProject ? '#ffffff' : 'var(--text-primary)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontSize: 12,
+                                fontWeight: 500,
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => startEditProject(p)}
+                              title={isEditingThisProject ? 'Tutup Formulir Edit' : 'Edit Karya & Detail'}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+                                {isEditingThisProject ? 'close' : 'edit'}
+                              </span>
+                              <span>{isEditingThisProject ? 'Tutup' : 'Edit'}</span>
+                            </button>
+
+                            <button
+                              style={{ padding: 8, border: '1px solid var(--border-medium)', borderRadius: 2, color: '#e0245e', background: '#ffffff', cursor: 'pointer' }}
+                              onClick={() => {
+                                if (confirm(`Hapus karya "${p.title}"?`)) {
+                                  onDeleteProject(p.id);
+                                }
+                              }}
+                              title="Hapus Karya"
+                            >
+                              <Trash2 size={15} />
+                            </button>
                           </div>
                         </div>
 
-                        {/* Direct Likes Editor & Actions */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                          {/* Direct Likes Modifier */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-subtle)', padding: '4px 10px', borderRadius: 2 }}>
-                            <Heart size={14} color="#e0245e" fill="#e0245e" />
-                            {isEditingThisLike ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <input
-                                  type="number"
-                                  value={likesInputVal}
-                                  onChange={(e) => setLikesInputVal(e.target.value)}
-                                  style={{ width: 60, height: 26, fontSize: 12, padding: '0 4px', border: '1px solid var(--border-medium)' }}
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => handleSaveDirectLikes(p.id)}
-                                  style={{ padding: '2px 6px', background: 'var(--text-primary)', color: '#fff', fontSize: 11, borderRadius: 2 }}
-                                >
-                                  OK
-                                </button>
-                                <button
-                                  onClick={() => setEditingLikesId(null)}
-                                  style={{ fontSize: 11, textDecoration: 'underline' }}
-                                >
-                                  X
-                                </button>
-                              </div>
-                            ) : (
-                              <div 
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                                onClick={() => {
-                                  setEditingLikesId(p.id);
-                                  setLikesInputVal(p.likesCount || 0);
-                                }}
-                                title="Klik untuk mengubah jumlah suka secara manual"
-                              >
-                                <span style={{ fontSize: 13, fontWeight: 600 }}>{p.likesCount || 0}</span>
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'underline' }}>Ubah</span>
-                              </div>
-                            )}
+                        {/* Inline Expandable Edit Form */}
+                        {isEditingThisProject && (
+                          <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                            {renderProjectEditForm(false, p)}
                           </div>
-
-                          <button
-                            style={{ padding: 8, border: '1px solid var(--border-medium)', borderRadius: 2 }}
-                            onClick={() => startEditProject(p)}
-                            title="Edit Karya & Detail"
-                          >
-                            <Edit3 size={15} />
-                          </button>
-
-                          <button
-                            style={{ padding: 8, border: '1px solid var(--border-medium)', borderRadius: 2, color: '#e0245e' }}
-                            onClick={() => {
-                              if (confirm(`Hapus karya "${p.title}"?`)) {
-                                onDeleteProject(p.id);
-                              }
-                            }}
-                            title="Hapus Karya"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                        )}
                       </div>
                     );
                   })}

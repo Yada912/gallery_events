@@ -403,6 +403,7 @@ export default function App() {
         onAddComment={handleAddComment}
         onDeleteComment={handleDeleteComment}
         onNavigateHome={handleNavigateHome}
+        onRefreshData={loadData}
       />
     );
   }

@@ -34,14 +34,17 @@ where not poster_url like 'data:%'
   and not poster_url like 'https://lh3.googleusercontent.com%'
   and poster_url ~ '/file/d/([a-zA-Z0-9_-]{15,})';
 
--- 3. Replace any invalid folder links or broken truncated links with fallback artwork
+-- 3. Clear any invalid folder links or broken truncated links so the UI displays the clean placeholder
 update public.projects
-set poster_url = '/artworks/poster1.jpg'
+set poster_url = ''
 where not poster_url like 'data:%'
   and (
     poster_url like '%/drive/folders/%'
     or poster_url like '%/folders/%'
     or poster_url = 'https://drive.google.com/file/d/'
+    or poster_url = '/artworks/poster1.jpg'
+    or poster_url = '/artworks/poster2.jpg'
+    or poster_url = '/artworks/poster3.jpg'
     or poster_url is null
     or trim(poster_url) = ''
   );
