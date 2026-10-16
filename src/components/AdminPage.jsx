@@ -142,7 +142,7 @@ export default function AdminPage({
     title: '',
     creators: '',
     format: 'PNG',
-    posterUrl: '/artworks/poster1.jpg',
+    posterUrl: '',
     gameUrl: '',
     description: '',
     likesCount: 0
@@ -204,7 +204,7 @@ export default function AdminPage({
       title: '',
       creators: '',
       format: 'PNG',
-      posterUrl: '/artworks/poster1.jpg',
+      posterUrl: '',
       gameUrl: '',
       description: '',
       likesCount: 0
@@ -338,7 +338,7 @@ export default function AdminPage({
         const description = parts[5]?.trim() || '';
 
         // Auto convert Google Drive links
-        const convertedPoster = convertGoogleDriveUrl(rawDriveUrl) || '/artworks/poster1.jpg';
+        const convertedPoster = convertGoogleDriveUrl(rawDriveUrl) || '';
 
         parsed.push({
           id: `proj-import-${Date.now()}-${index}`,
@@ -716,7 +716,7 @@ export default function AdminPage({
                             loading="lazy"
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = '/artworks/poster1.jpg';
+                              e.target.style.opacity = '0.3';
                             }}
                             style={{ 
                               width: 52, 

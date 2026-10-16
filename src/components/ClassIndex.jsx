@@ -86,11 +86,16 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
             .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
           const firstProject = classProjects[0];
+          const firstProjectWithPoster = classProjects.find(p => 
+            p.posterUrl && 
+            !p.posterUrl.includes('/folders/') && 
+            !p.posterUrl.startsWith('/artworks/')
+          ) || firstProject;
 
           // 8 stacked cards simulation matching Figma design
           const stackCount = 8;
           const stackItems = Array.from({ length: stackCount }).map((_, idx) => {
-            const project = classProjects[idx] || firstProject;
+            const project = classProjects[idx] || firstProjectWithPoster;
             return {
               idx,
               project
@@ -102,8 +107,9 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
               key={cls.id}
               className="class-card"
               onClick={() => {
-                if (firstProject) {
-                  onSelectProject(firstProject);
+                const target = firstProjectWithPoster || firstProject;
+                if (target) {
+                  onSelectProject(target);
                 } else if (onOpenStudentPortal) {
                   onOpenStudentPortal(cls);
                 } else {
@@ -116,10 +122,16 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                 <div className="stacked-cards-container">
                   {stackItems.map(({ idx, project }) => {
                     const isLast = idx === stackCount - 1;
+                    const isSecondLast = idx === stackCount - 2;
                     const offsetLeft = idx * 28; // horizontally layered
-                    // Performance optimization: only load image for distinct projects or top card
-                    const shouldShowImg = isLast || Boolean(classProjects[idx]);
-                    const hasValidImg = project?.posterUrl && !project.posterUrl.includes('/folders/');
+                    
+                    const hasValidImg = Boolean(
+                      project?.posterUrl && 
+                      !project.posterUrl.includes('/folders/') && 
+                      !project.posterUrl.startsWith('/artworks/')
+                    );
+                    // Load image only for the prominent top card or second top card to avoid GPU texture exhaustion
+                    const shouldShowImg = (isLast || (isSecondLast && Boolean(classProjects[1]))) && hasValidImg;
 
                     return (
                       <div
@@ -128,13 +140,18 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                         style={{
                           left: `${offsetLeft}px`,
                           zIndex: idx + 1,
-                          backgroundImage: (shouldShowImg && hasValidImg) ? `url("${project.posterUrl}")` : undefined,
+                          backgroundImage: shouldShowImg ? `url("${project.posterUrl}")` : undefined,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
                           backgroundColor: '#f0ede6'
                         }}
                       >
                         {isLast && (
                           <div className="stack-card-preview-label">
-                            {classProjects.length > 0 ? 'Pratinjau karya' : 'Karya segera hadir'}
+                            {hasValidImg 
+                              ? 'Pratinjau karya' 
+                              : (classProjects.length > 0 ? 'Poster sedang disiapkan' : 'Karya segera hadir')}
                           </div>
                         )}
                       </div>

@@ -58,6 +58,41 @@ export function cacheProjectsLocally(projects) {
   }
 }
 
+// ---------------------------------------------------------
+// Fast Image Preloader & Ready-State Decoders
+// Pre-decodes images in browser memory before view reveal
+// ---------------------------------------------------------
+export function preloadImage(url) {
+  if (typeof window === 'undefined' || !url || typeof url !== 'string' || !url.trim() || url.startsWith('/artworks/')) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      if (img.naturalWidth > 0) {
+        resolve(url);
+      } else {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+    if (img.complete && img.naturalWidth > 0) {
+      resolve(url);
+    }
+  });
+}
+
+export async function preloadAll(urls, timeoutMs = 2500) {
+  if (!urls || urls.length === 0) return [];
+  const promises = urls.map(url => preloadImage(url));
+  return Promise.race([
+    Promise.allSettled(promises),
+    new Promise(res => setTimeout(res, timeoutMs))
+  ]);
+}
+
 // Initialize localStorage with initial data only when Supabase is NOT configured
 export function initLocalStore() {
   if (typeof window === 'undefined') return;
@@ -232,7 +267,7 @@ export async function fetchProjects() {
           title: item.title,
           creators: item.creators,
           format: item.format || 'PNG',
-          posterUrl: convertGoogleDriveUrl(item.poster_url || '/artworks/poster1.jpg'),
+          posterUrl: convertGoogleDriveUrl(item.poster_url || ''),
           gameUrl: item.game_url || '',
           description: item.description || '',
           likesCount: item.likes_count || 0,
@@ -251,16 +286,16 @@ export async function fetchProjects() {
   initLocalStore();
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.PROJECTS);
-    const parsed = raw ? JSON.parse(raw) : INITIAL_PROJECTS;
+    const parsed = raw ? JSON.parse(raw) : (isSupabaseConfigured ? [] : INITIAL_PROJECTS);
     return parsed.map(p => ({
       ...p,
-      posterUrl: convertGoogleDriveUrl(p.posterUrl || '/artworks/poster1.jpg'),
+      posterUrl: convertGoogleDriveUrl(p.posterUrl || ''),
       comments: organizeComments(p.comments || [])
     }));
   } catch {
-    return INITIAL_PROJECTS.map(p => ({
+    return isSupabaseConfigured ? [] : INITIAL_PROJECTS.map(p => ({
       ...p,
-      posterUrl: convertGoogleDriveUrl(p.posterUrl || '/artworks/poster1.jpg'),
+      posterUrl: convertGoogleDriveUrl(p.posterUrl || ''),
       comments: organizeComments(p.comments || [])
     }));
   }
@@ -358,7 +393,6 @@ export function isProjectLikedByUser(projectId) {
 }
 
 export async function toggleLikeProject(projectId) {
-  initLocalStore();
   const liked = isProjectLikedByUser(projectId);
   let userLikes = [];
   try {
@@ -371,15 +405,10 @@ export async function toggleLikeProject(projectId) {
   } else {
     userLikes = userLikes.filter(id => id !== projectId);
   }
-  localStorage.setItem(STORAGE_KEYS.LIKED_PROJECTS, JSON.stringify(userLikes));
-
-  const projects = await fetchProjects();
-  const project = projects.find(p => p.id === projectId);
-  if (!project) return { liked: newLikedState, count: 0 };
+  safeSetLocalStorage(STORAGE_KEYS.LIKED_PROJECTS, JSON.stringify(userLikes));
 
   const delta = newLikedState ? 1 : -1;
-  const newCount = Math.max(0, (project.likesCount || 0) + delta);
-  project.likesCount = newCount;
+  let newCount = null;
 
   if (isSupabaseConfigured) {
     try {
@@ -391,33 +420,51 @@ export async function toggleLikeProject(projectId) {
 
       if (!rpcError && typeof rpcCount === 'number') {
         newCount = rpcCount;
-        project.likesCount = newCount;
       } else {
-        // 2. Graceful fallback to column update if RPC is not yet applied
-        await supabase
+        // 2. Graceful fallback: fetch only this single project row
+        const { data: row } = await supabase
           .from('projects')
-          .update({ likes_count: newCount })
-          .eq('id', projectId);
+          .select('likes_count')
+          .eq('id', projectId)
+          .single();
+        if (row) {
+          newCount = Math.max(0, (row.likes_count || 0) + delta);
+          await supabase
+            .from('projects')
+            .update({ likes_count: newCount })
+            .eq('id', projectId);
+        }
       }
     } catch (err) {
       console.error('Supabase like update error:', err);
     }
   }
 
-  cacheProjectsLocally(projects);
-  liveChannel?.postMessage({ type: 'LIKE_UPDATED', projectId, count: newCount });
-  return { liked: newLikedState, count: newCount };
+  // Local fallback count if Supabase is offline or not configured
+  if (newCount === null) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.PROJECTS);
+      if (raw) {
+        const local = JSON.parse(raw);
+        const item = local.find(p => p.id === projectId);
+        if (item) {
+          newCount = Math.max(0, (item.likesCount || 0) + delta);
+          item.likesCount = newCount;
+          safeSetLocalStorage(STORAGE_KEYS.PROJECTS, JSON.stringify(local));
+        }
+      }
+    } catch { }
+  }
+
+  if (newCount !== null) {
+    liveChannel?.postMessage({ type: 'LIKE_UPDATED', projectId, count: newCount });
+  }
+  return { liked: newLikedState, count: newCount ?? 0 };
 }
 
 // Admin directly sets exact likes count
 export async function setProjectLikesDirectly(projectId, count) {
-  initLocalStore();
   const safeCount = Math.max(0, parseInt(count, 10) || 0);
-  const projects = await fetchProjects();
-  const project = projects.find(p => p.id === projectId);
-  if (!project) return safeCount;
-
-  project.likesCount = safeCount;
 
   if (isSupabaseConfigured) {
     try {
@@ -430,7 +477,6 @@ export async function setProjectLikesDirectly(projectId, count) {
     }
   }
 
-  cacheProjectsLocally(projects);
   liveChannel?.postMessage({ type: 'LIKE_UPDATED', projectId, count: safeCount });
   return safeCount;
 }
@@ -453,22 +499,6 @@ export async function updateCommentInProject(projectId, commentId, updatedFields
     } catch (err) {
       console.error('Supabase updateComment error:', err);
     }
-  }
-
-  initLocalStore();
-  const projects = await fetchProjects();
-  const project = projects.find(p => p.id === projectId);
-  if (project && project.comments) {
-    project.comments = project.comments.map(c => {
-      if (c.id === commentId) {
-        return { ...c, ...updatedFields };
-      }
-      if (c.replies) {
-        c.replies = c.replies.map(r => r.id === commentId ? { ...r, ...updatedFields } : r);
-      }
-      return c;
-    });
-    cacheProjectsLocally(projects);
   }
 
   liveChannel?.postMessage({
@@ -509,15 +539,6 @@ export async function addCommentToProject(projectId, { authorName, content, isCr
     }
   }
 
-  // Local update
-  initLocalStore();
-  const projects = await fetchProjects();
-  const project = projects.find(p => p.id === projectId);
-  if (project) {
-    project.comments = organizeComments([...(project.comments || []), newComment]);
-    cacheProjectsLocally(projects);
-  }
-
   // Broadcast to other tabs & listeners
   liveChannel?.postMessage({
     type: 'COMMENT_ADDED',
@@ -535,20 +556,6 @@ export async function deleteCommentFromProject(projectId, commentId) {
     } catch (err) {
       console.error('Supabase deleteComment error:', err);
     }
-  }
-
-  initLocalStore();
-  const projects = await fetchProjects();
-  const project = projects.find(p => p.id === projectId);
-  if (project && project.comments) {
-    project.comments = project.comments.filter(c => {
-      if (c.id === commentId) return false;
-      if (c.replies) {
-        c.replies = c.replies.filter(r => r.id !== commentId);
-      }
-      return true;
-    });
-    cacheProjectsLocally(projects);
   }
 
   liveChannel?.postMessage({
@@ -601,17 +608,19 @@ export function resetToDemoData() {
 // Google Drive Link Converter & Batch Import Helper
 // ---------------------------------------------------------
 export function convertGoogleDriveUrl(url) {
-  if (!url || typeof url !== 'string') return '/artworks/poster1.jpg';
+  if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
 
   // If already a direct image or local path, return as is
   if (trimmed.startsWith('/artworks/') || trimmed.startsWith('data:image')) {
+    // If it's the old default poster reference, treat as empty so clean placeholder shows
+    if (trimmed.startsWith('/artworks/poster')) return '';
     return trimmed;
   }
 
   // Handle Google Drive folder link gracefully (cannot be rendered directly as an image)
   if (trimmed.includes('/drive/folders/') || trimmed.includes('/folders/')) {
-    return '/artworks/poster1.jpg';
+    return '';
   }
 
   // Pattern 1: https://drive.google.com/file/d/FILE_ID/...
@@ -634,7 +643,7 @@ export function convertGoogleDriveUrl(url) {
 
   // Incomplete / truncated drive URL (e.g., https://drive.google.com/file/d/)
   if (trimmed.includes('drive.google.com')) {
-    return '/artworks/poster1.jpg';
+    return '';
   }
 
   return trimmed;
@@ -740,7 +749,7 @@ export async function batchImportProjects(newProjectsList) {
     }
 
     const projectId = item.id || `proj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const formattedPoster = convertGoogleDriveUrl(item.posterUrl || '/artworks/poster1.jpg');
+    const formattedPoster = convertGoogleDriveUrl(item.posterUrl || '');
 
     const projectData = {
       id: projectId,

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { preloadImage } from '../lib/supabase';
 
 export default function ArtworkDetail({
   project,
@@ -18,6 +19,17 @@ export default function ArtworkDetail({
   const [replyingTo, setReplyingTo] = useState(null); // { id, authorName, content }
   const [submitting, setSubmitting] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
+
+  useEffect(() => {
+    setImageLoadError(false);
+  }, [project.id]);
+
+  const hasValidPoster = Boolean(
+    project.posterUrl && 
+    !project.posterUrl.startsWith('/artworks/') && 
+    !project.posterUrl.includes('/folders/')
+  );
 
   const commentFormRef = useRef(null);
   const textareaRef = useRef(null);
@@ -30,6 +42,12 @@ export default function ArtworkDetail({
   const currentIndex = sortedClassProjects.findIndex(p => p.id === project.id);
   const prevProject = currentIndex > 0 ? sortedClassProjects[currentIndex - 1] : null;
   const nextProject = currentIndex < sortedClassProjects.length - 1 ? sortedClassProjects[currentIndex + 1] : null;
+
+  // Preload neighboring artwork posters for instantaneous navigation
+  useEffect(() => {
+    if (nextProject?.posterUrl) preloadImage(nextProject.posterUrl);
+    if (prevProject?.posterUrl) preloadImage(prevProject.posterUrl);
+  }, [nextProject?.id, prevProject?.id]);
 
   const totalInClass = String(sortedClassProjects.length).padStart(2, '0');
   const pieceNumber = String(project.pieceNumber || (currentIndex + 1)).padStart(2, '0');
@@ -135,22 +153,36 @@ export default function ArtworkDetail({
           <div className="artwork-poster-canvas">
             <div 
               className="poster-image-wrapper"
-              onClick={() => setLightboxOpen(true)}
-              title="Klik untuk memperbesar poster karya"
+              onClick={() => hasValidPoster && !imageLoadError && setLightboxOpen(true)}
+              title={hasValidPoster && !imageLoadError ? "Klik untuk memperbesar poster karya" : undefined}
+              style={{ cursor: hasValidPoster && !imageLoadError ? 'zoom-in' : 'default' }}
             >
-              {project.posterUrl ? (
+              {hasValidPoster && !imageLoadError ? (
                 <img 
                   src={project.posterUrl} 
                   alt={`${project.title} - Poster Karya Siswa`}
                   loading="eager" 
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = '/artworks/poster1.jpg';
-                  }}
+                  onError={() => setImageLoadError(true)}
                 />
               ) : (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <div>Tempat karya</div>
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: 'var(--text-muted)',
+                  padding: '60px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 12
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 44, color: 'var(--text-muted)' }}>
+                    image_not_supported
+                  </span>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 15 }}>
+                    Poster Belum Diunggah
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 280 }}>
+                    Karya ini telah terdaftar, namun berkas gambar poster belum disematkan oleh kelompok siswa.
+                  </div>
                 </div>
               )}
             </div>
@@ -412,10 +444,7 @@ export default function ArtworkDetail({
           <img 
             src={project.posterUrl} 
             alt={project.title}
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = '/artworks/poster1.jpg';
-            }}
+            onError={() => setLightboxOpen(false)}
             style={{
               maxWidth: '90vw',
               maxHeight: '90vh',

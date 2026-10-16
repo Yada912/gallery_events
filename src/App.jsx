@@ -21,7 +21,9 @@ import {
   deleteCommentFromProject,
   subscribeToLiveUpdates,
   organizeComments,
-  isSupabaseConfigured
+  isSupabaseConfigured,
+  preloadImage,
+  preloadAll
 } from './lib/supabase';
 
 export default function App() {
@@ -62,7 +64,35 @@ export default function App() {
         fetchProjects()
       ]);
       setClasses(loadedClasses);
-      setProjects(loadedProjects);
+      setProjects((prev) => {
+        if (!loadedProjects || loadedProjects.length === 0) return prev;
+        return loadedProjects.map((p) => {
+          const existing = prev.find(old => old.id === p.id);
+          return {
+            ...p,
+            // Keep existing poster if incoming is blank (e.g. from stripped local cache)
+            posterUrl: p.posterUrl || (existing ? existing.posterUrl : '')
+          };
+        });
+      });
+
+      // Preload & decode immediate class cover images so the user sees ready, crisp cards instantly
+      const immediateCovers = loadedClasses.map((cls) => {
+        const classProjs = loadedProjects.filter((p) => p.classId === cls.id);
+        const cover = classProjs.find((p) => p.posterUrl && !p.posterUrl.includes('/folders/')) || classProjs[0];
+        return cover?.posterUrl;
+      }).filter(Boolean);
+
+      // Fast decode barrier (max 1.8s cap so slow networks never freeze the app)
+      await preloadAll(immediateCovers, 1800);
+
+      // Background progressive preload of all remaining artworks for instant artwork detail navigation
+      setTimeout(() => {
+        const remainingUrls = loadedProjects
+          .map((p) => p.posterUrl)
+          .filter((u) => u && !immediateCovers.includes(u));
+        preloadAll(remainingUrls, 8000);
+      }, 400);
 
       // Deep link support via hash (e.g. #karya-ipa12-01)
       const hash = window.location.hash;
