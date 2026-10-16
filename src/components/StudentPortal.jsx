@@ -179,7 +179,7 @@ export default function StudentPortal({
     setIsCompressing(true);
     setCompressStats(null);
     try {
-      const result = await compressImageToWebP(file, 1600, 0.82);
+      const result = await compressImageToWebP(file, 1100, 0.72);
       setFormData(prev => ({ ...prev, posterUrl: result.dataUrl }));
       setCompressStats({
         originalKb: result.originalSizeKb,
@@ -210,6 +210,9 @@ export default function StudentPortal({
 
   const handleDriveUrlChange = (e) => {
     const rawVal = e.target.value;
+    if (rawVal.includes('/drive/folders/') || rawVal.includes('/folders/')) {
+      alert('Perhatian: Tautan yang Anda masukkan adalah tautan FOLDER Google Drive, bukan berkas poster. Silakan buka gambar poster Anda di Google Drive, klik Bagikan > Salin Link gambar, lalu tempelkan di sini.');
+    }
     const converted = convertGoogleDriveUrl(rawVal);
     setFormData(prev => ({ ...prev, posterUrl: converted }));
   };

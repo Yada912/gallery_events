@@ -115,10 +115,34 @@ create policy "Allow all operations on access_keys"
 -- Performance Indexing
 -- --------------------------------------------------------
 create index if not exists idx_projects_class on public.projects(class_id);
+create index if not exists idx_projects_display on public.projects(display_order);
+create index if not exists idx_projects_created on public.projects(created_at desc);
 create index if not exists idx_comments_project on public.comments(project_id);
 create index if not exists idx_comments_created on public.comments(created_at desc);
 create index if not exists idx_access_keys_used on public.access_keys(is_used);
 create index if not exists idx_access_keys_class on public.access_keys(class_id);
+
+-- --------------------------------------------------------
+-- Atomic Like Increment RPC Function (prevents race conditions)
+-- --------------------------------------------------------
+create or replace function public.increment_project_like(p_project_id text, p_delta integer)
+returns integer
+language plpgsql
+security definer
+as $$
+declare
+  v_new_count integer;
+begin
+  update public.projects
+  set likes_count = greatest(0, coalesce(likes_count, 0) + p_delta)
+  where id = p_project_id
+  returning likes_count into v_new_count;
+  
+  return coalesce(v_new_count, 0);
+end;
+$$;
+
+grant execute on function public.increment_project_like(text, integer) to anon, authenticated, service_role;
 
 -- --------------------------------------------------------
 -- Enable Supabase Realtime (Safe: does NOT drop publication)
@@ -147,3 +171,4 @@ exception
     -- Silently ignore if already added or publication managed externally
     null;
 end $$;
+

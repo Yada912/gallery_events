@@ -713,6 +713,11 @@ export default function AdminPage({
                           <img 
                             src={p.posterUrl} 
                             alt={p.title}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/artworks/poster1.jpg';
+                            }}
                             style={{ 
                               width: 52, 
                               height: 70, 

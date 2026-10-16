@@ -143,6 +143,10 @@ export default function ArtworkDetail({
                   src={project.posterUrl} 
                   alt={`${project.title} - Poster Karya Siswa`}
                   loading="eager" 
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/artworks/poster1.jpg';
+                  }}
                 />
               ) : (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -408,6 +412,10 @@ export default function ArtworkDetail({
           <img 
             src={project.posterUrl} 
             alt={project.title}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/artworks/poster1.jpg';
+            }}
             style={{
               maxWidth: '90vw',
               maxHeight: '90vh',

@@ -33,15 +33,40 @@ const STORAGE_KEYS = {
   ACCESS_KEYS: 'gema_belajar_access_keys_v1'
 };
 
+// Safe LocalStorage wrapper to prevent quota exceeded DOMExceptions from halting mutations
+export function safeSetLocalStorage(key, value) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[Storage] localStorage write failed for key "${key}" (quota or disabled):`, err?.message || err);
+  }
+}
+
+// Lightweight cache for projects in localStorage without massive Base64 images
+export function cacheProjectsLocally(projects) {
+  if (typeof window === 'undefined') return;
+  try {
+    const lightweight = (projects || []).map(p => ({
+      ...p,
+      // If posterUrl is a huge data URL, do NOT store it in localStorage (which has a strict 5MB quota)
+      posterUrl: (p.posterUrl && p.posterUrl.startsWith('data:')) ? '' : (p.posterUrl || '')
+    }));
+    safeSetLocalStorage(STORAGE_KEYS.PROJECTS, JSON.stringify(lightweight));
+  } catch (err) {
+    console.warn('[Storage] Failed to cache projects locally:', err?.message || err);
+  }
+}
+
 // Initialize localStorage with initial data only when Supabase is NOT configured
 export function initLocalStore() {
   if (typeof window === 'undefined') return;
   if (isSupabaseConfigured) return;
   if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) {
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(INITIAL_CLASSES));
+    safeSetLocalStorage(STORAGE_KEYS.CLASSES, JSON.stringify(INITIAL_CLASSES));
   }
   if (!localStorage.getItem(STORAGE_KEYS.PROJECTS)) {
-    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(INITIAL_PROJECTS));
+    cacheProjectsLocally(INITIAL_PROJECTS);
   }
 }
 
@@ -200,20 +225,23 @@ export async function fetchProjects() {
         `)
         .order('display_order', { ascending: true });
       if (!error && data) {
-        return data.map(item => ({
+        const mapped = data.map(item => ({
           id: item.id,
           classId: item.class_id,
           pieceNumber: item.piece_number,
           title: item.title,
           creators: item.creators,
           format: item.format || 'PNG',
-          posterUrl: item.poster_url,
+          posterUrl: convertGoogleDriveUrl(item.poster_url || '/artworks/poster1.jpg'),
           gameUrl: item.game_url || '',
           description: item.description || '',
           likesCount: item.likes_count || 0,
           displayOrder: item.display_order || 0,
           comments: organizeComments(item.comments || [])
         }));
+        // Update lightweight local cache in the background for resilient offline fallback
+        cacheProjectsLocally(mapped);
+        return mapped;
       }
     } catch (err) {
       console.warn('Supabase fetchProjects error, using local fallback:', err);
@@ -226,11 +254,13 @@ export async function fetchProjects() {
     const parsed = raw ? JSON.parse(raw) : INITIAL_PROJECTS;
     return parsed.map(p => ({
       ...p,
+      posterUrl: convertGoogleDriveUrl(p.posterUrl || '/artworks/poster1.jpg'),
       comments: organizeComments(p.comments || [])
     }));
   } catch {
     return INITIAL_PROJECTS.map(p => ({
       ...p,
+      posterUrl: convertGoogleDriveUrl(p.posterUrl || '/artworks/poster1.jpg'),
       comments: organizeComments(p.comments || [])
     }));
   }
@@ -255,12 +285,13 @@ export async function saveProject(projectData) {
   const finalProject = {
     ...projectData,
     pieceNumber,
-    format: projectData.format || 'WEBP'
+    format: projectData.format || 'WEBP',
+    posterUrl: convertGoogleDriveUrl(projectData.posterUrl)
   };
 
   if (isSupabaseConfigured) {
     try {
-      await supabase.from('projects').upsert({
+      const { error: upsertErr } = await supabase.from('projects').upsert({
         id: finalProject.id,
         class_id: finalProject.classId,
         piece_number: finalProject.pieceNumber,
@@ -273,8 +304,13 @@ export async function saveProject(projectData) {
         likes_count: finalProject.likesCount || 0,
         display_order: finalProject.displayOrder || 0
       });
+      if (upsertErr) {
+        console.error('Supabase saveProject upsert error:', upsertErr);
+        throw upsertErr;
+      }
     } catch (err) {
       console.error('Supabase saveProject error:', err);
+      throw new Error(err.message || 'Gagal menyimpan karya ke database cloud.');
     }
   }
 
@@ -286,7 +322,7 @@ export async function saveProject(projectData) {
   } else {
     updated = [...current, finalProject];
   }
-  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
+  cacheProjectsLocally(updated);
   liveChannel?.postMessage({ type: 'PROJECTS_UPDATED', projectId: finalProject.id });
   return updated;
 }
@@ -303,7 +339,7 @@ export async function deleteProject(projectId) {
   initLocalStore();
   const current = await fetchProjects();
   const updated = current.filter(p => p.id !== projectId);
-  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
+  cacheProjectsLocally(updated);
   liveChannel?.postMessage({ type: 'PROJECTS_UPDATED', projectId });
   return updated;
 }
@@ -368,7 +404,7 @@ export async function toggleLikeProject(projectId) {
     }
   }
 
-  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+  cacheProjectsLocally(projects);
   liveChannel?.postMessage({ type: 'LIKE_UPDATED', projectId, count: newCount });
   return { liked: newLikedState, count: newCount };
 }
@@ -394,7 +430,7 @@ export async function setProjectLikesDirectly(projectId, count) {
     }
   }
 
-  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+  cacheProjectsLocally(projects);
   liveChannel?.postMessage({ type: 'LIKE_UPDATED', projectId, count: safeCount });
   return safeCount;
 }
@@ -432,7 +468,7 @@ export async function updateCommentInProject(projectId, commentId, updatedFields
       }
       return c;
     });
-    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+    cacheProjectsLocally(projects);
   }
 
   liveChannel?.postMessage({
@@ -479,7 +515,7 @@ export async function addCommentToProject(projectId, { authorName, content, isCr
   const project = projects.find(p => p.id === projectId);
   if (project) {
     project.comments = organizeComments([...(project.comments || []), newComment]);
-    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+    cacheProjectsLocally(projects);
   }
 
   // Broadcast to other tabs & listeners
@@ -512,7 +548,7 @@ export async function deleteCommentFromProject(projectId, commentId) {
       }
       return true;
     });
-    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+    cacheProjectsLocally(projects);
   }
 
   liveChannel?.postMessage({
@@ -565,7 +601,7 @@ export function resetToDemoData() {
 // Google Drive Link Converter & Batch Import Helper
 // ---------------------------------------------------------
 export function convertGoogleDriveUrl(url) {
-  if (!url || typeof url !== 'string') return url;
+  if (!url || typeof url !== 'string') return '/artworks/poster1.jpg';
   const trimmed = url.trim();
 
   // If already a direct image or local path, return as is
@@ -573,22 +609,32 @@ export function convertGoogleDriveUrl(url) {
     return trimmed;
   }
 
+  // Handle Google Drive folder link gracefully (cannot be rendered directly as an image)
+  if (trimmed.includes('/drive/folders/') || trimmed.includes('/folders/')) {
+    return '/artworks/poster1.jpg';
+  }
+
   // Pattern 1: https://drive.google.com/file/d/FILE_ID/...
   const matchFileD = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (matchFileD && matchFileD[1]) {
+  if (matchFileD && matchFileD[1] && matchFileD[1].length >= 15) {
     return `https://lh3.googleusercontent.com/d/${matchFileD[1]}`;
   }
 
   // Pattern 2: id=FILE_ID
   const matchId = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (matchId && matchId[1]) {
+  if (matchId && matchId[1] && matchId[1].length >= 15) {
     return `https://lh3.googleusercontent.com/d/${matchId[1]}`;
   }
 
   // Pattern 3: https://drive.google.com/open?id=FILE_ID
   const matchOpen = trimmed.match(/open\?id=([a-zA-Z0-9_-]+)/);
-  if (matchOpen && matchOpen[1]) {
+  if (matchOpen && matchOpen[1] && matchOpen[1].length >= 15) {
     return `https://lh3.googleusercontent.com/d/${matchOpen[1]}`;
+  }
+
+  // Incomplete / truncated drive URL (e.g., https://drive.google.com/file/d/)
+  if (trimmed.includes('drive.google.com')) {
+    return '/artworks/poster1.jpg';
   }
 
   return trimmed;
@@ -596,10 +642,10 @@ export function convertGoogleDriveUrl(url) {
 
 // ---------------------------------------------------------
 // Client-side High-efficiency Image Compressor (WebP)
-// Automatically scales large camera/render images to max 1600px
-// and encodes to lightweight WebP (~100-150KB) so ~70 projects take <12MB
+// Scales images to max 1100px at quality 0.72 (~50-80KB WebP)
+// Prevents database bloat, mobile network timeouts, and memory spikes
 // ---------------------------------------------------------
-export async function compressImageToWebP(file, maxDimension = 1600, quality = 0.82) {
+export async function compressImageToWebP(file, maxDimension = 1100, quality = 0.72) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type || !file.type.startsWith('image/')) {
       return reject(new Error('Berkas bukan format gambar yang valid.'));
@@ -721,8 +767,8 @@ export async function batchImportProjects(newProjectsList) {
     await saveProject(projectData);
   }
 
-  localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updatedProjects));
-  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(updatedClasses));
+  cacheProjectsLocally(updatedProjects);
+  safeSetLocalStorage(STORAGE_KEYS.CLASSES, JSON.stringify(updatedClasses));
   liveChannel?.postMessage({ type: 'BATCH_IMPORTED' });
 
   return { projects: updatedProjects, classes: updatedClasses };

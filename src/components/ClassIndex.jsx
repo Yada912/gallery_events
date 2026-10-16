@@ -117,6 +117,9 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                   {stackItems.map(({ idx, project }) => {
                     const isLast = idx === stackCount - 1;
                     const offsetLeft = idx * 28; // horizontally layered
+                    // Performance optimization: only load image for distinct projects or top card
+                    const shouldShowImg = isLast || Boolean(classProjects[idx]);
+                    const hasValidImg = project?.posterUrl && !project.posterUrl.includes('/folders/');
 
                     return (
                       <div
@@ -125,7 +128,7 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                         style={{
                           left: `${offsetLeft}px`,
                           zIndex: idx + 1,
-                          backgroundImage: project?.posterUrl ? `url(${project.posterUrl})` : undefined,
+                          backgroundImage: (shouldShowImg && hasValidImg) ? `url("${project.posterUrl}")` : undefined,
                           backgroundColor: '#f0ede6'
                         }}
                       >
