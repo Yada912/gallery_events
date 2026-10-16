@@ -130,8 +130,6 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                       !project.posterUrl.includes('/folders/') && 
                       !project.posterUrl.startsWith('/artworks/')
                     );
-                    // Load image only for the prominent top card or second top card to avoid GPU texture exhaustion
-                    const shouldShowImg = (isLast || (isSecondLast && Boolean(classProjects[1]))) && hasValidImg;
 
                     return (
                       <div
@@ -140,7 +138,7 @@ export default function ClassIndex({ classes, projects, onSelectClass, onSelectP
                         style={{
                           left: `${offsetLeft}px`,
                           zIndex: idx + 1,
-                          backgroundImage: shouldShowImg ? `url("${project.posterUrl}")` : undefined,
+                          backgroundImage: hasValidImg ? `url("${project.posterUrl}")` : undefined,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
